@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>FxCompany デモ口座</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
+  <style>
+    body { background: #0f172a; color: #e2e8f0; }
+    .card { background: #1e293b; border: 1px solid #334155; border-radius: 12px; }
+    .table-header { background: #0f172a; }
+    tr:nth-child(even) { background: rgba(255,255,255,0.02); }
+  </style>
+</head>
+<body class="min-h-screen p-4 md:p-8">
+
+  <!-- Header -->
+  <div class="mb-8">
+    <div class="flex items-center justify-between flex-wrap gap-4">
+      <div>
+        <h1 class="text-2xl font-bold text-white">FxCompany <span class="text-cyan-400">デモ口座</span></h1>
+        <p class="text-slate-400 text-sm mt-1">セクター追いつき戦略 v2-f｜自動運用ダッシュボード</p>
+      </div>
+      <div class="text-right">
+        <div class="text-slate-400 text-xs">最終データ更新</div>
+        <div class="text-white font-mono text-sm">2026-05-07</div>
+        <div class="text-slate-500 text-xs mt-1">生成: 2026-05-07 22:03 JST</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Summary cards -->
+  <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+    <div class="card p-5">
+      <div class="text-slate-400 text-xs mb-1">資産評価額</div>
+      <div class="text-white text-xl font-bold">1,000,000<span class="text-sm text-slate-400">円</span></div>
+      <div class="text-sm mt-1" style="color:#22c55e">+0.00% 初期比</div>
+    </div>
+    <div class="card p-5">
+      <div class="text-slate-400 text-xs mb-1">含み損益</div>
+      <div class="text-xl font-bold" style="color:#22c55e">
+        +0<span class="text-sm text-slate-400">円</span>
+      </div>
+      <div class="text-slate-400 text-xs mt-1">実現: +0円</div>
+    </div>
+    <div class="card p-5">
+      <div class="text-slate-400 text-xs mb-1">最大DD</div>
+      <div class="text-xl font-bold text-emerald-400">0.0%</div>
+      <div class="text-slate-400 text-xs mt-1">上限: 25%（本番停止ライン）</div>
+    </div>
+    <div class="card p-5">
+      <div class="text-slate-400 text-xs mb-1">累計トレード</div>
+      <div class="text-white text-xl font-bold">0<span class="text-sm text-slate-400">件</span></div>
+      <div class="text-slate-400 text-xs mt-1">保有: 0件 / 候補: 3件</div>
+    </div>
+  </div>
+
+  <!-- Charts -->
+  <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+    <div class="card p-5 md:col-span-2">
+      <h2 class="text-white font-semibold mb-4">口座額推移（万円）</h2>
+      <canvas id="equityChart" height="120"></canvas>
+    </div>
+    <div class="card p-5">
+      <h2 class="text-white font-semibold mb-4">ドローダウン（%）</h2>
+      <canvas id="ddChart" height="120"></canvas>
+    </div>
+  </div>
+
+  <!-- Positions -->
+  <div class="card mb-6 overflow-hidden">
+    <div class="px-5 py-4 border-b border-slate-700 flex items-center gap-2">
+      <span class="w-2 h-2 rounded-full bg-cyan-400"></span>
+      <h2 class="text-white font-semibold">保有ポジション（0件）</h2>
+    </div>
+    <div class="overflow-x-auto">
+      <table class="w-full text-sm">
+        <thead class="table-header">
+          <tr class="text-slate-400 text-xs">
+            <th class="px-4 py-3 text-left">銘柄</th>
+            <th class="px-4 py-3 text-left">業種</th>
+            <th class="px-4 py-3 text-right">取得値</th>
+            <th class="px-4 py-3 text-right">保有株数</th>
+            <th class="px-4 py-3 text-right">投資額</th>
+            <th class="px-4 py-3 text-right">ストップ</th>
+            <th class="px-4 py-3 text-right">保有日数</th>
+          </tr>
+        </thead>
+        <tbody><tr><td colspan="7" class="px-4 py-6 text-center text-slate-500">保有なし</td></tr></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Pending -->
+  <div class="card mb-6 overflow-hidden">
+    <div class="px-5 py-4 border-b border-slate-700 flex items-center gap-2">
+      <span class="w-2 h-2 rounded-full bg-yellow-400"></span>
+      <h2 class="text-white font-semibold">明日 寄り候補（3件）</h2>
+    </div>
+    <div class="overflow-x-auto">
+      <table class="w-full text-sm">
+        <thead class="table-header">
+          <tr class="text-slate-400 text-xs">
+            <th class="px-4 py-3 text-left">銘柄</th>
+            <th class="px-4 py-3 text-left">業種</th>
+            <th class="px-4 py-3 text-right">引け値</th>
+            <th class="px-4 py-3 text-right">乖離</th>
+            <th class="px-4 py-3 text-right">相関</th>
+            <th class="px-4 py-3 text-left">分類</th>
+          </tr>
+        </thead>
+        <tbody>
+        <tr class="hover:bg-slate-750 transition-colors">
+          <td class="px-4 py-3 font-mono font-bold text-yellow-400">5214.T</td>
+          <td class="px-4 py-3 text-slate-300">ガラス･土石製品</td>
+          <td class="px-4 py-3 text-right">7,032</td>
+          <td class="px-4 py-3 text-right text-emerald-400">+14.8%</td>
+          <td class="px-4 py-3 text-right text-slate-400">0.64</td>
+          <td class="px-4 py-3 text-slate-400">中間株</td>
+        </tr>
+        <tr class="hover:bg-slate-750 transition-colors">
+          <td class="px-4 py-3 font-mono font-bold text-yellow-400">5334.T</td>
+          <td class="px-4 py-3 text-slate-300">ガラス･土石製品</td>
+          <td class="px-4 py-3 text-right">7,962</td>
+          <td class="px-4 py-3 text-right text-emerald-400">+7.8%</td>
+          <td class="px-4 py-3 text-right text-slate-400">0.61</td>
+          <td class="px-4 py-3 text-slate-400">中間株</td>
+        </tr>
+        <tr class="hover:bg-slate-750 transition-colors">
+          <td class="px-4 py-3 font-mono font-bold text-yellow-400">4045.T</td>
+          <td class="px-4 py-3 text-slate-300">化学</td>
+          <td class="px-4 py-3 text-right">1,716</td>
+          <td class="px-4 py-3 text-right text-emerald-400">+6.0%</td>
+          <td class="px-4 py-3 text-right text-slate-400">0.79</td>
+          <td class="px-4 py-3 text-slate-400">中間株</td>
+        </tr></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Trades -->
+  <div class="card mb-8 overflow-hidden">
+    <div class="px-5 py-4 border-b border-slate-700 flex items-center gap-2">
+      <span class="w-2 h-2 rounded-full bg-emerald-400"></span>
+      <h2 class="text-white font-semibold">決済トレード履歴（直近10件）</h2>
+    </div>
+    <div class="overflow-x-auto">
+      <table class="w-full text-sm">
+        <thead class="table-header">
+          <tr class="text-slate-400 text-xs">
+            <th class="px-4 py-3 text-left">銘柄</th>
+            <th class="px-4 py-3 text-left">決済日</th>
+            <th class="px-4 py-3 text-right">取得</th>
+            <th class="px-4 py-3 text-right">決済</th>
+            <th class="px-4 py-3 text-right">損益</th>
+            <th class="px-4 py-3 text-right">%</th>
+            <th class="px-4 py-3 text-left">理由</th>
+            <th class="px-4 py-3 text-right">日数</th>
+          </tr>
+        </thead>
+        <tbody><tr><td colspan="8" class="px-4 py-6 text-center text-slate-500">決済トレードなし</td></tr></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Footer -->
+  <div class="text-center text-slate-600 text-xs pb-4">
+    FxCompany 調査部門（AI孫正義）｜セクター追いつき戦略 v2-f デモ運用
+  </div>
+
+  <script>
+    const DATES  = ["2026-05-07"];
+    const EQUITY = [100.0];
+    const DD     = [-0.0];
+
+    // 口座額チャート
+    new Chart(document.getElementById('equityChart'), {
+      type: 'line',
+      data: {
+        labels: DATES,
+        datasets: [{
+          label: '評価額（万円）',
+          data: EQUITY,
+          borderColor: '#22d3ee',
+          backgroundColor: 'rgba(34,211,238,0.08)',
+          borderWidth: 2,
+          fill: true,
+          tension: 0.3,
+          pointRadius: EQUITY.length > 20 ? 0 : 3,
+        }]
+      },
+      options: {
+        responsive: true,
+        plugins: { legend: { display: false } },
+        scales: {
+          x: { ticks: { color: '#64748b', maxTicksLimit: 8 }, grid: { color: '#1e293b' } },
+          y: { ticks: { color: '#64748b' }, grid: { color: '#1e293b' } }
+        }
+      }
+    });
+
+    // DDチャート
+    new Chart(document.getElementById('ddChart'), {
+      type: 'line',
+      data: {
+        labels: DATES,
+        datasets: [{
+          label: 'DD（%）',
+          data: DD,
+          borderColor: '#f87171',
+          backgroundColor: 'rgba(248,113,113,0.1)',
+          borderWidth: 1.5,
+          fill: true,
+          tension: 0.3,
+          pointRadius: 0,
+        }]
+      },
+      options: {
+        responsive: true,
+        plugins: { legend: { display: false } },
+        scales: {
+          x: { ticks: { color: '#64748b', maxTicksLimit: 6 }, grid: { color: '#1e293b' } },
+          y: { ticks: { color: '#64748b' }, grid: { color: '#1e293b' }, max: 0 }
+        }
+      }
+    });
+  </script>
+</body>
+</html>

@@ -58,11 +58,16 @@ jobs:
           JQUANTS_API_KEY: ${{ secrets.JQUANTS_API_KEY }}
           PYTHONIOENCODING: utf-8
 
-      - name: 状態ファイルをコミットしてプッシュ
+      - name: ダッシュボード HTML 生成（make_dashboard.py）
+        run: python japan_stocks/make_dashboard.py
+        env:
+          PYTHONIOENCODING: utf-8
+
+      - name: 状態ファイル＆ダッシュボードをコミットしてプッシュ
         run: |
           git config user.name "FxCompany Demo Bot"
           git config user.email "demo-bot@fxcompany.local"
-          git add japan_stocks/results/demo/
+          git add japan_stocks/results/demo/ docs/
           git diff --staged --quiet && echo "変更なし" || (
             git commit -m "demo: $(date '+%Y-%m-%d') 日次自動更新 [skip ci]" &&
             git push
