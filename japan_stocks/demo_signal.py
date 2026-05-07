@@ -244,6 +244,11 @@ def execute_pending(
             remaining_pending.append(p)
             continue
 
+        # 当日シグナルは翌日寄りで執行するため本日はスキップ
+        if p.get("signal_date", "") >= today.strftime("%Y-%m-%d"):
+            remaining_pending.append(p)
+            continue
+
         ticker = p["ticker"]
         sector = p["sector"]
 
