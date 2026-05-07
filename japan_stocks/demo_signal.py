@@ -249,6 +249,12 @@ def execute_pending(
             remaining_pending.append(p)
             continue
 
+        # 有効期限チェック: バックテストと同様に1営業日（最大5暦日）超過で破棄
+        signal_dt = pd.Timestamp(p.get("signal_date", "2000-01-01"))
+        if (today - signal_dt).days > 5:
+            _log(f"  [期限切れ破棄] {p['ticker']} signal_date={p['signal_date']}")
+            continue
+
         ticker = p["ticker"]
         sector = p["sector"]
 
@@ -412,9 +418,10 @@ def generate_signals(
     today: pd.Timestamp,
 ) -> list[dict]:
     """今日の引け後シグナル → 明日寄りの買い候補を生成"""
-    open_tickers  = {p["ticker"] for p in state["positions"]}
+    open_tickers    = {p["ticker"] for p in state["positions"]}
     pending_tickers = {p["ticker"] for p in state["pending"]}
-    slots = MAX_POSITIONS - len(state["positions"])
+    # positions + pending の合計で MAX_POSITIONS を管理（バックテストと同等）
+    slots = MAX_POSITIONS - len(state["positions"]) - len(state["pending"])
     if slots <= 0:
         return []
 
