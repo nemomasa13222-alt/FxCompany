@@ -11,9 +11,30 @@
     .card { background: #1e293b; border: 1px solid #334155; border-radius: 12px; }
     .table-header { background: #0f172a; }
     tr:nth-child(even) { background: rgba(255,255,255,0.02); }
+    #pw-overlay { position:fixed; inset:0; background:#0f172a; display:flex; align-items:center; justify-content:center; z-index:9999; }
+    #pw-box { background:#1e293b; border:1px solid #334155; border-radius:16px; padding:40px; width:320px; text-align:center; }
+    #pw-input { background:#0f172a; border:1px solid #475569; border-radius:8px; color:#fff; font-size:20px; text-align:center; width:100%; padding:12px; margin:16px 0; letter-spacing:6px; outline:none; }
+    #pw-input:focus { border-color:#22d3ee; }
+    #pw-btn { background:#22d3ee; color:#0f172a; font-weight:bold; border:none; border-radius:8px; width:100%; padding:12px; cursor:pointer; font-size:15px; }
+    #pw-btn:hover { background:#06b6d4; }
+    #pw-err { color:#f87171; font-size:13px; margin-top:8px; min-height:18px; }
+    @keyframes shake { 0%,100%{transform:translateX(0)} 20%,60%{transform:translateX(-8px)} 40%,80%{transform:translateX(8px)} }
+    .shake { animation: shake 0.4s ease; }
   </style>
 </head>
 <body class="min-h-screen p-4 md:p-8">
+
+  <!-- パスワード画面 -->
+  <div id="pw-overlay">
+    <div id="pw-box">
+      <div style="font-size:32px;margin-bottom:8px;">🔒</div>
+      <div style="color:#e2e8f0;font-weight:bold;font-size:18px;">FxCompany デモ口座</div>
+      <div style="color:#64748b;font-size:13px;margin-top:4px;">パスワードを入力してください</div>
+      <input id="pw-input" type="password" placeholder="●●●●" maxlength="32" autofocus />
+      <button id="pw-btn" onclick="checkPw()">ログイン</button>
+      <div id="pw-err"></div>
+    </div>
+  </div>
 
   <!-- Header -->
   <div class="mb-8">
@@ -25,7 +46,7 @@
       <div class="text-right">
         <div class="text-slate-400 text-xs">最終データ更新</div>
         <div class="text-white font-mono text-sm">2026-05-07</div>
-        <div class="text-slate-500 text-xs mt-1">生成: 2026-05-07 22:03 JST</div>
+        <div class="text-slate-500 text-xs mt-1">生成: 2026-05-07 22:14 JST</div>
       </div>
     </div>
   </div>
@@ -170,6 +191,33 @@
   </div>
 
   <script>
+    // パスワード認証
+    const PW_HASH = "d4735e3a265e16eee03f59718b9b5d03019c07d8b6c51f90da3a666eec13ab35";
+    async function sha256(msg) {
+      const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(msg));
+      return Array.from(new Uint8Array(buf)).map(b=>b.toString(16).padStart(2,"0")).join("");
+    }
+    async function checkPw() {
+      const val = document.getElementById("pw-input").value;
+      const hash = await sha256(val);
+      if (hash === PW_HASH) {
+        sessionStorage.setItem("fx_auth", "1");
+        document.getElementById("pw-overlay").style.display = "none";
+      } else {
+        const box = document.getElementById("pw-box");
+        document.getElementById("pw-err").textContent = "パスワードが違います";
+        box.classList.remove("shake");
+        void box.offsetWidth;
+        box.classList.add("shake");
+        document.getElementById("pw-input").value = "";
+      }
+    }
+    document.getElementById("pw-input").addEventListener("keydown", e => { if(e.key==="Enter") checkPw(); });
+    // セッション内は再入力不要
+    if (sessionStorage.getItem("fx_auth") === "1") {
+      document.getElementById("pw-overlay").style.display = "none";
+    }
+
     const DATES  = ["2026-05-07"];
     const EQUITY = [100.0];
     const DD     = [-0.0];
