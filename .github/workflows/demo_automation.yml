@@ -1,0 +1,69 @@
+﻿name: デモ運用 日次自動実行
+
+on:
+  schedule:
+    - cron: '0 7 * * 1-5'   # 平日 16:00 JST (= 07:00 UTC)
+  workflow_dispatch:          # GitHub画面から手動実行も可能
+
+permissions:
+  contents: write             # state.json等をコミットバックするために必要
+
+jobs:
+  demo:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: リポジトリをチェックアウト
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Python 3.12 セットアップ
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: 依存パッケージインストール
+        run: pip install -r requirements.txt
+
+      - name: 価格キャッシュ復元（yfinance parquet）
+        uses: actions/cache@v4
+        with:
+          path: japan_stocks/results/cache
+          key: price-cache-${{ github.run_number }}
+          restore-keys: |
+            price-cache-
+
+      - name: J-Quantsキャッシュ復元
+        uses: actions/cache@v4
+        with:
+          path: japan_stocks/results/jquants_cache
+          key: jquants-cache-${{ github.run_number }}
+          restore-keys: |
+            jquants-cache-
+
+      - name: デモ状態ディレクトリ作成
+        run: mkdir -p japan_stocks/results/demo
+
+      - name: データ収集（demo_collect.py）
+        run: python japan_stocks/demo_collect.py
+        env:
+          JQUANTS_API_KEY: ${{ secrets.JQUANTS_API_KEY }}
+          PYTHONIOENCODING: utf-8
+
+      - name: シグナル生成・架空執行（demo_signal.py）
+        run: python japan_stocks/demo_signal.py
+        env:
+          JQUANTS_API_KEY: ${{ secrets.JQUANTS_API_KEY }}
+          PYTHONIOENCODING: utf-8
+
+      - name: 状態ファイルをコミットしてプッシュ
+        run: |
+          git config user.name "FxCompany Demo Bot"
+          git config user.email "demo-bot@fxcompany.local"
+          git add japan_stocks/results/demo/
+          git diff --staged --quiet && echo "変更なし" || (
+            git commit -m "demo: $(date '+%Y-%m-%d') 日次自動更新 [skip ci]" &&
+            git push
+          )

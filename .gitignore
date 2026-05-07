@@ -1,0 +1,28 @@
+﻿# Python
+__pycache__/
+*.pyc
+*.pyo
+
+# 大容量キャッシュ（GitHub Actions cache で管理）
+japan_stocks/results/cache/
+japan_stocks/results/jquants_cache/
+
+# 生成レポート・バックテスト出力（大容量）
+japan_stocks/results/reports/
+japan_stocks/results/backtest/
+japan_stocks/results/robustness/
+japan_stocks/results/robustness2/
+japan_stocks/results/logs/
+
+# バッチファイル（ローカル専用）
+japan_stocks/_run_*.bat
+
+# バックテストデータ・結果
+backtest/results/
+backtest/USDJPY/
+
+# 機密・個人データ
+.company/
+
+# デモ状態ファイルは追跡する（git管理対象）
+# japan_stocks/results/demo/ は除外しない
