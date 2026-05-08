@@ -1,21 +1,7 @@
 {
-  "capital": 1000000,
+  "capital": 994427,
   "peak_capital": 1000000,
   "positions": [
-    {
-      "ticker": "5214.T",
-      "sector": "ガラス･土石製品",
-      "entry_date": "2026-05-08",
-      "entry_price": 7125.0,
-      "shares": 46,
-      "stop_price": 7018.1,
-      "sector_at_entry": 321.7,
-      "days_held": 2,
-      "signal_gap_pct": 14.75,
-      "corr": 0.642,
-      "current_price": 6941.0,
-      "unrealized_pnl": -8464
-    },
     {
       "ticker": "5334.T",
       "sector": "ガラス･土石製品",
@@ -24,7 +10,7 @@
       "shares": 40,
       "stop_price": 8048.4,
       "sector_at_entry": 321.7,
-      "days_held": 2,
+      "days_held": 1,
       "signal_gap_pct": 7.85,
       "corr": 0.612,
       "current_price": 8670.0,
@@ -35,18 +21,18 @@
       "sector": "化学",
       "entry_date": "2026-05-08",
       "entry_price": 1724.0,
-      "shares": 193,
+      "shares": 192,
       "stop_price": 1698.1,
       "sector_at_entry": 232.2,
-      "days_held": 2,
+      "days_held": 1,
       "signal_gap_pct": 5.95,
       "corr": 0.79,
       "current_price": 1711.0,
-      "unrealized_pnl": -2509
+      "unrealized_pnl": -2496
     }
   ],
   "pending": [],
   "last_run": "2026-05-08",
-  "total_realized_pnl": 0,
-  "trade_count": 0
+  "total_realized_pnl": -5573,
+  "trade_count": 1
 }
