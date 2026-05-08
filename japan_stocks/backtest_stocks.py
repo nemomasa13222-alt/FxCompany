@@ -202,6 +202,12 @@ def run(
         for t, df in stocks_df.items()
     }
 
+    # 安値（ストップロス判定用）
+    lows: dict[str, pd.Series] = {
+        t: pd.to_numeric(df["Low"], errors="coerce").reindex(all_dates)
+        for t, df in stocks_df.items() if "Low" in df.columns
+    }
+
     opens: dict[str, pd.Series] = {}
     if stocks_opens:
         for t, s in stocks_opens.items():
@@ -264,8 +270,10 @@ def run(
             reason:     Optional[str] = None
             exit_price: float         = float(price_now)
 
-            # ストップロス
-            if price_now <= pos.stop_price:
+            # ストップロス: 当日安値がストップラインを下回ったら損切価格で決済
+            low_now = lows[pos.ticker].iat[i] if pos.ticker in lows else np.nan
+            check   = float(low_now) if not pd.isna(low_now) else float(price_now)
+            if check <= pos.stop_price:
                 reason     = "stop"
                 exit_price = pos.stop_price
 
@@ -612,17 +620,23 @@ def run_cross_sector(
     sec_aligned:    dict[str, pd.Series]              = {}
     closes_aligned: dict[str, dict[str, pd.Series]]   = {}
     opens_aligned:  dict[str, dict[str, pd.Series]]   = {}
+    lows_aligned:   dict[str, dict[str, pd.Series]]   = {}
 
     for name, idx in sector_indices.items():
         sec_aligned[name] = idx.reindex(unified_dates)
 
     for name, stocks in sector_stocks_all.items():
         closes_aligned[name] = {}
+        lows_aligned[name]   = {}
         for ticker, df in stocks.items():
             col = "AdjustmentClose" if "AdjustmentClose" in df.columns else "Close"
             closes_aligned[name][ticker] = (
                 pd.to_numeric(df[col], errors="coerce").reindex(unified_dates)
             )
+            if "Low" in df.columns:
+                lows_aligned[name][ticker] = (
+                    pd.to_numeric(df["Low"], errors="coerce").reindex(unified_dates)
+                )
 
     for name, opens in sector_opens_all.items():
         opens_aligned[name] = {}
@@ -679,7 +693,11 @@ def run_cross_sector(
             reason     = None
             exit_price = price_now
 
-            if price_now <= pos.stop_price:
+            # ストップロス: 当日安値がストップラインを下回ったら損切価格で決済
+            low_s   = lows_aligned.get(pos.sector, {}).get(pos.ticker)
+            low_now = float(low_s.iat[i]) if (low_s is not None and not pd.isna(low_s.iat[i])) else np.nan
+            check   = low_now if not np.isnan(low_now) else price_now
+            if check <= pos.stop_price:
                 reason = "stop"; exit_price = pos.stop_price
             elif pos.days_held >= config.max_hold_days:
                 reason = "time"

@@ -99,7 +99,7 @@ def _to_yf(code: str) -> str:
     return (c[:4] if c.endswith("0") else c) + ".T"
 
 
-def load_sector_data() -> tuple[dict, dict, dict]:
+def load_sector_data() -> tuple[dict, dict, dict, dict]:
     """CANDIDATE_SECTORSのデータをキャッシュから読み込む"""
     client = JQuantsClient()
     master = client.get_stock_list()
@@ -109,6 +109,7 @@ def load_sector_data() -> tuple[dict, dict, dict]:
     sector_indices: dict[str, pd.Series]               = {}
     sector_stocks:  dict[str, dict[str, pd.DataFrame]] = {}
     sector_opens:   dict[str, dict[str, pd.Series]]    = {}
+    sector_lows:    dict[str, dict[str, pd.Series]]    = {}
 
     for (_, s33_name), group in prime.groupby(["S33", "S33Nm"]):
         if s33_name not in CANDIDATE_SECTORS:
@@ -117,7 +118,8 @@ def load_sector_data() -> tuple[dict, dict, dict]:
         tickers = [_to_yf(c) for c in codes]
 
         stocks_prices: dict[str, pd.Series] = {}
-        stocks_opens_:  dict[str, pd.Series] = {}
+        stocks_opens_: dict[str, pd.Series] = {}
+        stocks_lows_:  dict[str, pd.Series] = {}
         for ticker in tickers:
             try:
                 df = dt.fetch(ticker, start=DATA_START)
@@ -125,6 +127,8 @@ def load_sector_data() -> tuple[dict, dict, dict]:
                     stocks_prices[ticker] = df["Close"]
                     if "Open" in df.columns:
                         stocks_opens_[ticker] = df["Open"]
+                    if "Low" in df.columns:
+                        stocks_lows_[ticker] = df["Low"]
             except Exception:
                 pass
 
@@ -139,8 +143,9 @@ def load_sector_data() -> tuple[dict, dict, dict]:
         sector_stocks[s33_name]  = {t: c.rename("Close").to_frame()
                                      for t, c in stocks_prices.items()}
         sector_opens[s33_name]   = stocks_opens_
+        sector_lows[s33_name]    = stocks_lows_
 
-    return sector_indices, sector_stocks, sector_opens
+    return sector_indices, sector_stocks, sector_opens, sector_lows
 
 
 # ── 動的セクター選別（今日） ──────────────────────────────────────────────────
@@ -332,8 +337,12 @@ def check_exits(
     sector_indices: dict[str, pd.Series],
     sector_stocks: dict[str, dict[str, pd.DataFrame]],
     today: pd.Timestamp,
+    sector_lows: dict[str, dict[str, pd.Series]] | None = None,
 ) -> list[dict]:
-    """保有ポジションのエグジット条件をチェック（今日の引け値）"""
+    """保有ポジションのエグジット条件をチェック。
+    ストップロスは当日安値（Low）がストップラインを下回った時点で発動し、
+    ストップ価格で損切りする。Lowが取得できない場合は引け値で判定。
+    """
     closed_trades = []
     still_open    = []
     capital       = state["capital"]
@@ -359,12 +368,25 @@ def check_exits(
             still_open.append(pos)
             continue
 
+        # 今日の安値を取得（ストップロス判定用）
+        low_price = None
+        if sector_lows:
+            lows = sector_lows.get(sector, {})
+            if ticker in lows:
+                s_low = lows[ticker]
+                avail_low = s_low[s_low.index <= today]
+                if not avail_low.empty:
+                    v = float(avail_low.iloc[-1])
+                    if not np.isnan(v) and v > 0:
+                        low_price = v
+
         pos["days_held"] = pos.get("days_held", 0) + 1
         reason     = None
         exit_price = close_price
 
-        # ストップロス
-        if close_price <= pos["stop_price"]:
+        # ストップロス: 安値がストップラインを下回ったら損切価格で決済
+        check_price = low_price if low_price is not None else close_price
+        if check_price <= pos["stop_price"]:
             reason     = "stop"
             exit_price = pos["stop_price"]
 
@@ -667,7 +689,7 @@ def main():
 
     # データ読み込み
     _log("\nデータ読み込み中...")
-    sector_indices, sector_stocks, sector_opens = load_sector_data()
+    sector_indices, sector_stocks, sector_opens, sector_lows = load_sector_data()
     _log(f"  {len(sector_indices)}業種 読み込み完了")
 
     # アクティブセクター判定
@@ -683,7 +705,7 @@ def main():
 
     # Step 2: エグジットチェック
     _log("\n--- Step 2: 保有ポジション エグジットチェック ---")
-    closed_trades = check_exits(state, sector_indices, sector_stocks, today_dt)
+    closed_trades = check_exits(state, sector_indices, sector_stocks, today_dt, sector_lows)
     if not closed_trades:
         _log("  決済なし")
 

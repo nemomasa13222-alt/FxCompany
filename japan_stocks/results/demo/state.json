@@ -21,14 +21,14 @@
       "sector": "化学",
       "entry_date": "2026-05-08",
       "entry_price": 1724.0,
-      "shares": 192,
+      "shares": 193,
       "stop_price": 1698.1,
       "sector_at_entry": 232.2,
       "days_held": 1,
       "signal_gap_pct": 5.95,
       "corr": 0.79,
       "current_price": 1711.0,
-      "unrealized_pnl": -2496
+      "unrealized_pnl": -2509
     }
   ],
   "pending": [],
