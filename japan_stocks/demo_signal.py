@@ -451,6 +451,57 @@ def check_exits(
     return closed_trades
 
 
+# ── ローテーション用ヘルパー ──────────────────────────────────────────────────
+def _pos_current_gap(
+    pos: dict,
+    sector_indices: dict[str, pd.Series],
+    sector_stocks: dict[str, dict[str, pd.DataFrame]],
+    today: pd.Timestamp,
+) -> float:
+    """既存ポジションの今日時点の乖離率（セクター5日変化 - 銘柄5日変化）を返す。
+    計算不能な場合は -999.0 を返す（最弱判定の対象外にする）。
+    """
+    sector = pos["sector"]
+    ticker = pos["ticker"]
+    idx    = sector_indices.get(sector)
+    stocks = sector_stocks.get(sector, {})
+    df     = stocks.get(ticker)
+    if idx is None or df is None:
+        return -999.0
+    try:
+        avail_idx = idx[idx.index <= today]
+        col       = "AdjustmentClose" if "AdjustmentClose" in df.columns else "Close"
+        avail_stk = df[col][df[col].index <= today]
+        if len(avail_idx) <= SECTOR_LOOKBACK or len(avail_stk) <= SECTOR_LOOKBACK:
+            return -999.0
+        sec_now  = float(avail_idx.iloc[-1])
+        sec_past = float(avail_idx.iloc[-1 - SECTOR_LOOKBACK])
+        stk_now  = float(avail_stk.iloc[-1])
+        stk_past = float(avail_stk.iloc[-1 - SECTOR_LOOKBACK])
+        if sec_past <= 0 or stk_past <= 0 or np.isnan(stk_now) or np.isnan(stk_past):
+            return -999.0
+        return (sec_now / sec_past - 1) * 100 - (stk_now / stk_past - 1) * 100
+    except Exception:
+        return -999.0
+
+
+def _get_pos_close(
+    pos: dict,
+    sector_stocks: dict[str, dict[str, pd.DataFrame]],
+    today: pd.Timestamp,
+) -> float | None:
+    """既存ポジションの今日の引け値を返す。取得不能なら None。"""
+    df = sector_stocks.get(pos["sector"], {}).get(pos["ticker"])
+    if df is None:
+        return None
+    col   = "AdjustmentClose" if "AdjustmentClose" in df.columns else "Close"
+    avail = df[col][df[col].index <= today]
+    if avail.empty:
+        return None
+    v = float(avail.iloc[-1])
+    return v if not np.isnan(v) and v > 0 else None
+
+
 # ── Step 3: 新規エントリーシグナル生成 ────────────────────────────────────────
 def generate_signals(
     state: dict,
@@ -458,14 +509,14 @@ def generate_signals(
     sector_stocks: dict[str, dict[str, pd.DataFrame]],
     active_sectors: set[str],
     today: pd.Timestamp,
-) -> list[dict]:
-    """今日の引け後シグナル → 明日寄りの買い候補を生成"""
+) -> tuple[list[dict], list[dict]]:
+    """今日の引け後シグナル → 明日寄りの買い候補を生成。
+    満ポジ時は乖離率比較によるポジション回転も実施。
+    Returns: (new_signals, rotated_trades)
+    """
     open_tickers    = {p["ticker"] for p in state["positions"]}
     pending_tickers = {p["ticker"] for p in state["pending"]}
-    # positions + pending の合計で MAX_POSITIONS を管理（バックテストと同等）
     slots = MAX_POSITIONS - len(state["positions"]) - len(state["pending"])
-    if slots <= 0:
-        return []
 
     all_candidates: list[dict] = []
 
@@ -531,15 +582,83 @@ def generate_signals(
 
     # gap降順でソートして上位slots件を pending へ
     all_candidates.sort(key=lambda x: x["gap_pct"], reverse=True)
-    selected = all_candidates[:slots]
+    selected: list[dict] = []
+    if slots > 0:
+        existing_pending_tickers = {p["ticker"] for p in state["pending"]}
+        for c in all_candidates[:slots]:
+            if c["ticker"] not in existing_pending_tickers:
+                state["pending"].append(c)
+                selected.append(c)
 
-    # 既存 pending に追加（重複排除）
-    existing_pending_tickers = {p["ticker"] for p in state["pending"]}
-    for c in selected:
-        if c["ticker"] not in existing_pending_tickers:
-            state["pending"].append(c)
+    # ── ローテーションチェック ────────────────────────────────────────────────
+    # slots分を埋めた残り候補 vs 既存ポジションの現在乖離率を比較。
+    # 候補の乖離率 > 既存の最小乖離率 → 最弱ポジションを今日の引けで決済し候補をpendingへ
+    rotated_trades: list[dict] = []
+    pending_tickers_now = {p["ticker"] for p in state["pending"]}
+    remaining = [c for c in all_candidates[max(slots, 0):]
+                 if c["ticker"] not in pending_tickers_now]
 
-    return selected
+    if remaining and state["positions"]:
+        pos_gaps = sorted(
+            [(pos, _pos_current_gap(pos, sector_indices, sector_stocks, today))
+             for pos in state["positions"]],
+            key=lambda x: x[1],
+        )
+        rotated_ids: set[int] = set()
+
+        for cand in remaining:
+            if not pos_gaps:
+                break
+            weakest_pos, weakest_gap = pos_gaps[0]
+            if id(weakest_pos) in rotated_ids:
+                pos_gaps.pop(0)
+                continue
+            if cand["gap_pct"] <= weakest_gap:
+                break  # 以降の候補はさらに小さいgap（降順ソート済み）
+            if cand["ticker"] in {p["ticker"] for p in state["pending"]}:
+                continue
+
+            # 引け値で決済
+            close_price = _get_pos_close(weakest_pos, sector_stocks, today)
+            if close_price is None:
+                pos_gaps.pop(0)
+                continue
+
+            cost    = weakest_pos["entry_price"] * weakest_pos["shares"] * 0.20 / 100
+            pnl_raw = (close_price - weakest_pos["entry_price"]) * weakest_pos["shares"]
+            net_pnl = pnl_raw - cost
+            state["capital"]            += net_pnl
+            state["peak_capital"]        = max(state.get("peak_capital", state["capital"]), state["capital"])
+            state["total_realized_pnl"]  = state.get("total_realized_pnl", 0) + net_pnl
+            state["trade_count"]         = state.get("trade_count", 0) + 1
+
+            trade = {
+                "exit_date":   today.strftime("%Y-%m-%d"),
+                "ticker":      weakest_pos["ticker"],
+                "sector":      weakest_pos["sector"],
+                "entry_date":  weakest_pos["entry_date"],
+                "entry_price": weakest_pos["entry_price"],
+                "exit_price":  round(close_price, 1),
+                "shares":      weakest_pos["shares"],
+                "exit_reason": "rotate",
+                "pnl_jpy":     round(net_pnl),
+                "return_pct":  round((close_price / weakest_pos["entry_price"] - 1) * 100, 2),
+                "days_held":   weakest_pos.get("days_held", 0),
+            }
+            rotated_trades.append(trade)
+            sign_r = "+" if net_pnl >= 0 else ""
+            _log(f"  【ローテーション】{weakest_pos['ticker']} 乖離{weakest_gap:.1f}%"
+                 f" → {cand['ticker']} 乖離{cand['gap_pct']:.1f}%  "
+                 f"損益: {sign_r}{net_pnl:,.0f}円")
+
+            # 弱ポジ除去 → 新候補をpendingへ
+            state["positions"] = [p for p in state["positions"]
+                                   if p is not weakest_pos]
+            state["pending"].append(cand)
+            rotated_ids.add(id(weakest_pos))
+            pos_gaps.pop(0)
+
+    return selected, rotated_trades
 
 
 # ── Step 4: 損益スナップショット ──────────────────────────────────────────────
@@ -638,11 +757,14 @@ def print_daily_summary(
                  f"{p['entry_price']:,.0f}円 × {p['shares']}株 = {jpy:,}円  "
                  f"stop: {p['stop_price']:,.0f}円")
 
-    if closed_trades:
-        _log(f"\n  ── 本日 架空決済 ({len(closed_trades)}件) ──")
-        for t in closed_trades:
+    all_closed = closed_trades + state.get("_rotated_trades_today", [])
+    if all_closed:
+        _log(f"\n  ── 本日 架空決済 ({len(all_closed)}件) ──")
+        reason_label = {"stop": "損切", "target": "利確", "time": "時間", "rotate": "回転"}
+        for t in all_closed:
             sign_t = "+" if t["pnl_jpy"] >= 0 else ""
-            _log(f"    {t['ticker']:>10} ({t['exit_reason']:6})  "
+            label  = reason_label.get(t["exit_reason"], t["exit_reason"])
+            _log(f"    {t['ticker']:>10} ({label:4})  "
                  f"{sign_t}{t['pnl_jpy']:,}円  ({t['return_pct']:+.2f}%)  "
                  f"{t['days_held']}日")
 
@@ -709,25 +831,28 @@ def main():
     if not closed_trades:
         _log("  決済なし")
 
-    # Step 3: 新規シグナル生成
-    _log("\n--- Step 3: 新規エントリーシグナル生成 ---")
-    new_signals = generate_signals(
+    # Step 3: 新規シグナル生成 + ローテーション
+    _log("\n--- Step 3: 新規エントリーシグナル生成 / ローテーションチェック ---")
+    new_signals, rotated_trades = generate_signals(
         state, sector_indices, sector_stocks, active_sectors, today_dt
     )
-    _log(f"  シグナル数: {len(new_signals)}件")
+    _log(f"  シグナル数: {len(new_signals)}件  ローテーション: {len(rotated_trades)}件")
 
-    # Step 4: 損益スナップショット保存
+    # Step 4: 損益スナップショット保存（通常決済 + ローテーション決済を合算）
+    all_closed = closed_trades + rotated_trades
+    state["_rotated_trades_today"] = rotated_trades  # サマリー表示用（保存しない）
     total_equity, ret_pct, dd_pct, unrealized = save_pnl_snapshot(
-        state, sector_stocks, today_dt, closed_trades, new_signals
+        state, sector_stocks, today_dt, all_closed, new_signals
     )
 
-    # 状態保存
+    # 状態保存（_rotated_trades_today は除去）
+    state.pop("_rotated_trades_today", None)
     state["last_run"] = today_dt.strftime("%Y-%m-%d")
     _save_state(state)
 
     # 日次サマリー
     print_daily_summary(
-        state, today_dt, executed, closed_trades, new_signals,
+        state, today_dt, executed, all_closed, new_signals,
         total_equity, ret_pct, dd_pct, unrealized,
     )
 
