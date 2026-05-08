@@ -258,7 +258,7 @@ def execute_pending(
         ticker = p["ticker"]
         sector = p["sector"]
 
-        # 今日の寄り値を取得
+        # 今日の寄り値を取得（日足キャッシュ → 5分足フォールバック）
         open_price = None
         opens = sector_opens.get(sector, {})
         if ticker in opens:
@@ -269,7 +269,27 @@ def execute_pending(
                 if not np.isnan(v) and v > 0:
                     open_price = v
 
-        # 寄り値が取れない場合はシグナル日の引け値で代替
+        # 日足キャッシュに当日データがない場合は5分足の第1バーから寄り値を取得
+        if open_price is None:
+            try:
+                import yfinance as _yf
+                intra = _yf.download(ticker, period="1d", interval="5m", progress=False)
+                if not intra.empty:
+                    if isinstance(intra.columns, pd.MultiIndex):
+                        intra.columns = intra.columns.get_level_values(0)
+                    intra.index = intra.index.tz_convert("Asia/Tokyo").tz_localize(None)
+                    today_bars = intra[intra.index.normalize() == today]
+                    if not today_bars.empty:
+                        v = float(today_bars["Open"].iloc[0])
+                        if not np.isnan(v) and v > 0:
+                            open_price = v
+                            _log(f"  [5分足寄り値] {ticker} {v:,.0f}円")
+            except Exception as e:
+                _log(f"  [5分足取得失敗] {ticker}: {e}")
+
+        if open_price is None:
+            _log(f"  [警告] {ticker} の寄り値が取得できません。シグナル引け値を使用")
+
         entry_price = open_price or p["signal_close"]
         if entry_price <= 0:
             continue
