@@ -4,13 +4,13 @@
 state.json / pnl_history.csv / trades.csv を読み込み docs/index.html を生成する。
 
 実行: python japan_stocks/make_dashboard.py
-GitHub Actions で demo_signal.py の後に自動実行される。
 """
 
-import sys, json
+import sys, json, base64
 sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 from pathlib import Path
 from datetime import datetime
+from io import BytesIO
 import pandas as pd
 
 DEMO_DIR  = Path(__file__).parent / "results" / "demo"
@@ -26,11 +26,164 @@ PW_HASH         = "d4735e3a265e16eee03f59718b9b5d03019c07d8b6c51f90da3a666eec13a
 
 
 def load_data() -> tuple[dict, list, list]:
-    state = json.loads(STATE_FILE.read_text(encoding="utf-8")) if STATE_FILE.exists() else {}
-    pnl   = pd.read_csv(PNL_FILE,    encoding="utf-8-sig").to_dict("records") if PNL_FILE.exists()    else []
-    trades= pd.read_csv(TRADES_FILE, encoding="utf-8-sig").to_dict("records") if TRADES_FILE.exists() else []
+    state  = json.loads(STATE_FILE.read_text(encoding="utf-8")) if STATE_FILE.exists() else {}
+    pnl    = pd.read_csv(PNL_FILE,    encoding="utf-8-sig").to_dict("records") if PNL_FILE.exists()    else []
+    trades = pd.read_csv(TRADES_FILE, encoding="utf-8-sig").to_dict("records") if TRADES_FILE.exists() else []
     return state, pnl, trades
 
+
+# ── チャート生成 ───────────────────────────────────────────────────────────────
+
+def _b64(fig) -> str:
+    import matplotlib.pyplot as plt
+    buf = BytesIO()
+    fig.savefig(buf, format="png", dpi=100, bbox_inches="tight", facecolor="#0f172a")
+    plt.close(fig)
+    return base64.b64encode(buf.getvalue()).decode()
+
+
+def _mpf_style():
+    import mplfinance as mpf
+    return mpf.make_mpf_style(
+        base_mpf_style="nightclouds",
+        facecolor="#0f172a", figcolor="#0f172a",
+        gridcolor="#1e293b", gridstyle="-",
+        rc={
+            "axes.labelcolor": "#94a3b8",
+            "xtick.color": "#64748b",
+            "ytick.color": "#64748b",
+            "font.family": "Meiryo",
+        },
+    )
+
+
+def chart_position(ticker: str, entry_price: float, stop_price: float, entry_date_str: str) -> str:
+    """保有ポジション: 当日5分足チャート（エントリーライン・ストップライン付き）"""
+    try:
+        import yfinance as yf
+        import mplfinance as mpf
+        import matplotlib as mpl
+        import matplotlib.pyplot as plt
+        mpl.rcParams["font.family"] = "Meiryo"
+
+        df = yf.download(ticker, period="1d", interval="5m", progress=False)
+        if df.empty:
+            return ""
+        if isinstance(df.columns, pd.MultiIndex):
+            df.columns = df.columns.get_level_values(0)
+        df.index = df.index.tz_convert("Asia/Tokyo")
+        df = df[["Open", "High", "Low", "Close", "Volume"]].dropna()
+        if len(df) < 3:
+            return ""
+
+        apds = [
+            mpf.make_addplot([entry_price] * len(df), color="#22d3ee", linestyle="--", width=1.5),
+            mpf.make_addplot([stop_price]  * len(df), color="#f87171", linestyle="--", width=1.5),
+        ]
+        fig, axes = mpf.plot(
+            df, type="candle", style=_mpf_style(), addplot=apds,
+            volume=True, figsize=(11, 5), returnfig=True,
+            tight_layout=True, datetime_format="%H:%M", xrotation=0,
+        )
+        ax = axes[0]
+        price_range = df["High"].max() - df["Low"].min()
+        offset = price_range * 0.04
+
+        ax.plot(0, entry_price - offset, marker="^", color="#22d3ee", markersize=14, zorder=5)
+        ax.text(2, entry_price + offset * 0.3,
+                f"買い: {entry_price:,.0f}円", color="#22d3ee", fontsize=10, fontweight="bold")
+        ax.text(2, stop_price  + offset * 0.3,
+                f"ストップ: {stop_price:,.0f}円", color="#f87171", fontsize=10)
+
+        last_close = float(df["Close"].iloc[-1])
+        ax.axhline(last_close, color="#fbbf24", linestyle=":", linewidth=1.2)
+        ax.text(len(df) * 0.82, last_close + offset * 0.3,
+                f"引け: {last_close:,.0f}円", color="#fbbf24", fontsize=9)
+
+        ax.set_title(f"{ticker}  {entry_date_str}  5分足", color="#e2e8f0", fontsize=12, pad=10)
+        fig.patch.set_facecolor("#0f172a")
+        return _b64(fig)
+    except Exception as e:
+        print(f"  [chart_position エラー] {ticker}: {e}")
+        return ""
+
+
+def chart_trade(ticker: str, entry_date_str: str, entry_price: float,
+                exit_date_str: str, exit_price: float, exit_reason: str) -> str:
+    """決済済みトレード: エントリー/エグジットをチャート上にマーク"""
+    try:
+        import yfinance as yf
+        import mplfinance as mpf
+        import matplotlib as mpl
+        import matplotlib.pyplot as plt
+        mpl.rcParams["font.family"] = "Meiryo"
+
+        same_day = entry_date_str == exit_date_str
+        reason_map = {"stop": "損切", "target": "利確", "time": "時間切れ"}
+        exit_colors = {"stop": "#f87171", "target": "#22c55e", "time": "#fb923c"}
+        label  = reason_map.get(exit_reason, exit_reason)
+        ec     = exit_colors.get(exit_reason, "#94a3b8")
+
+        if same_day:
+            df = yf.download(ticker, period="1d", interval="5m", progress=False)
+            if df.empty: return ""
+            if isinstance(df.columns, pd.MultiIndex):
+                df.columns = df.columns.get_level_values(0)
+            df.index = df.index.tz_convert("Asia/Tokyo")
+            df = df[["Open", "High", "Low", "Close", "Volume"]].dropna()
+            fmt = "%H:%M"
+            xi_entry = 0
+            xi_exit  = len(df) - 1
+        else:
+            start = (pd.Timestamp(entry_date_str) - pd.Timedelta(days=15)).strftime("%Y-%m-%d")
+            end   = (pd.Timestamp(exit_date_str)  + pd.Timedelta(days=10)).strftime("%Y-%m-%d")
+            df = yf.download(ticker, start=start, end=end, progress=False)
+            if df.empty: return ""
+            if isinstance(df.columns, pd.MultiIndex):
+                df.columns = df.columns.get_level_values(0)
+            df = df[["Open", "High", "Low", "Close", "Volume"]].dropna()
+            fmt = "%m/%d"
+            dates = [d.strftime("%Y-%m-%d") for d in df.index]
+            xi_entry = next((i for i, d in enumerate(dates) if d == entry_date_str), 0)
+            xi_exit  = next((i for i, d in enumerate(reversed(dates)) if d == exit_date_str),
+                            len(df) - 1)
+            xi_exit  = len(df) - 1 - xi_exit
+
+        if len(df) < 2: return ""
+
+        price_range = df["High"].max() - df["Low"].min()
+        offset = max(price_range * 0.04, entry_price * 0.005)
+
+        fig, axes = mpf.plot(
+            df, type="candle", style=_mpf_style(),
+            volume=True, figsize=(11, 5), returnfig=True,
+            tight_layout=True, datetime_format=fmt, xrotation=0,
+        )
+        ax = axes[0]
+
+        # エントリーマーカー
+        ax.plot(xi_entry, entry_price - offset, marker="^", color="#22d3ee", markersize=14, zorder=5)
+        ax.text(xi_entry, entry_price - offset * 2.2,
+                f"買い\n{entry_price:,.0f}", color="#22d3ee", fontsize=8, ha="center")
+
+        # エグジットマーカー
+        ax.plot(xi_exit, exit_price + offset, marker="v", color=ec, markersize=14, zorder=5)
+        ax.text(xi_exit, exit_price + offset * 2.2,
+                f"{label}\n{exit_price:,.0f}", color=ec, fontsize=8, ha="center")
+
+        pnl_pct = (exit_price / entry_price - 1) * 100
+        ax.set_title(
+            f"{ticker}  買い({entry_date_str}) → {label}({exit_date_str})  ({pnl_pct:+.2f}%)",
+            color="#e2e8f0", fontsize=11, pad=10,
+        )
+        fig.patch.set_facecolor("#0f172a")
+        return _b64(fig)
+    except Exception as e:
+        print(f"  [chart_trade エラー] {ticker}: {e}")
+        return ""
+
+
+# ── HTML生成 ──────────────────────────────────────────────────────────────────
 
 def build_html(state: dict, pnl: list, trades: list, pw_hash: str = PW_HASH) -> str:
     last_run     = state.get("last_run", "—")
@@ -47,36 +200,67 @@ def build_html(state: dict, pnl: list, trades: list, pw_hash: str = PW_HASH) -> 
     ret_pct      = latest_pnl.get("return_pct", 0)
     max_dd       = latest_pnl.get("max_dd_pct", 0)
 
-    ret_color    = "#22c55e" if ret_pct >= 0 else "#ef4444"
-    ret_sign     = "+" if ret_pct >= 0 else ""
+    ret_color = "#22c55e" if ret_pct >= 0 else "#ef4444"
+    ret_sign  = "+" if ret_pct >= 0 else ""
 
-    # Chart data
+    # ── チャートデータ生成 ─────────────────────────────────────────────────────
+    charts: dict[str, str] = {}
+
+    print("  保有ポジションのチャート生成中...")
+    for p in positions:
+        key = f"pos_{p['ticker']}"
+        print(f"    {p['ticker']} ...", end=" ", flush=True)
+        charts[key] = chart_position(
+            p["ticker"], p["entry_price"], p["stop_price"], p["entry_date"]
+        )
+        print("OK" if charts[key] else "スキップ")
+
+    print("  決済トレードのチャート生成中...")
+    for t in trades:
+        key = f"trade_{t['ticker']}_{t['exit_date']}"
+        if key not in charts:
+            print(f"    {t['ticker']} ({t['exit_date']}) ...", end=" ", flush=True)
+            charts[key] = chart_trade(
+                t["ticker"], t["entry_date"], t["entry_price"],
+                t["exit_date"], t["exit_price"], t["exit_reason"],
+            )
+            print("OK" if charts[key] else "スキップ")
+
+    charts_json = json.dumps(charts)
+
+    # ── Chart data ────────────────────────────────────────────────────────────
     chart_dates  = json.dumps([r["date"] for r in pnl])
     chart_equity = json.dumps([round(r["total_equity"] / 10000, 1) for r in pnl])
     chart_dd     = json.dumps([round(-r["max_dd_pct"], 2) for r in pnl])
 
-    # Positions rows
+    # ── 保有ポジション行 ───────────────────────────────────────────────────────
     pos_rows = ""
     for p in positions:
-        days    = p.get("days_held", 0)
-        stop    = p.get("stop_price", 0)
-        entry   = p.get("entry_price", 0)
-        shares  = p.get("shares", 0)
-        invest  = round(entry * shares)
-        cur     = p.get("current_price")
-        unreal  = p.get("unrealized_pnl")
+        days   = p.get("days_held", 0)
+        stop   = p.get("stop_price", 0)
+        entry  = p.get("entry_price", 0)
+        shares = p.get("shares", 0)
+        invest = round(entry * shares)
+        cur    = p.get("current_price")
+        unreal = p.get("unrealized_pnl")
+        key    = f"pos_{p['ticker']}"
+        clickable = "cursor-pointer hover:text-cyan-300 underline" if charts.get(key) else ""
+        onclick   = f'onclick="showChart(\'{key}\')"' if charts.get(key) else ""
+
         if cur is not None:
-            ret_p   = (cur / entry - 1) * 100 if entry else 0
-            cur_str = f"{cur:,.0f}"
-            ret_col = "#22c55e" if ret_p >= 0 else "#ef4444"
-            unreal_str = f"{'+'if unreal>=0 else ''}{unreal:,.0f}円<br><span style='font-size:11px'>({ret_p:+.2f}%)</span>"
+            ret_p      = (cur / entry - 1) * 100 if entry else 0
+            cur_str    = f"{cur:,.0f}"
+            ret_col    = "#22c55e" if ret_p >= 0 else "#ef4444"
+            unreal_str = (f"{'+'if unreal>=0 else ''}{unreal:,.0f}円"
+                          f"<br><span style='font-size:11px'>({ret_p:+.2f}%)</span>")
         else:
             cur_str    = "—"
             ret_col    = "#64748b"
             unreal_str = "—"
+
         pos_rows += f"""
         <tr class="hover:bg-slate-750 transition-colors">
-          <td class="px-4 py-3 font-mono font-bold text-cyan-400">{p['ticker']}</td>
+          <td class="px-4 py-3 font-mono font-bold text-cyan-400 {clickable}" {onclick}>{p['ticker']}</td>
           <td class="px-4 py-3 text-slate-300">{p['sector']}</td>
           <td class="px-4 py-3 text-right">{entry:,.0f}</td>
           <td class="px-4 py-3 text-right font-bold">{cur_str}</td>
@@ -87,7 +271,7 @@ def build_html(state: dict, pnl: list, trades: list, pw_hash: str = PW_HASH) -> 
           <td class="px-4 py-3 text-right text-slate-400">{days}日目</td>
         </tr>"""
 
-    # Pending rows
+    # ── pending行 ─────────────────────────────────────────────────────────────
     pend_rows = ""
     for p in pending:
         pend_rows += f"""
@@ -100,17 +284,22 @@ def build_html(state: dict, pnl: list, trades: list, pw_hash: str = PW_HASH) -> 
           <td class="px-4 py-3 text-slate-400">{p.get('classification', '')}</td>
         </tr>"""
 
-    # Trade rows (last 10)
+    # ── 決済トレード行（全件） ─────────────────────────────────────────────────
     trade_rows = ""
-    for t in reversed(trades[-10:]):
-        pnl_val = t.get("pnl_jpy", 0)
-        pnl_col = "#22c55e" if pnl_val >= 0 else "#ef4444"
-        sign    = "+" if pnl_val >= 0 else ""
+    for t in reversed(trades):
+        pnl_val  = t.get("pnl_jpy", 0)
+        pnl_col  = "#22c55e" if pnl_val >= 0 else "#ef4444"
+        sign     = "+" if pnl_val >= 0 else ""
         reason_map = {"target": "利確", "stop": "損切", "time": "時間"}
-        reason = reason_map.get(t.get("exit_reason", ""), t.get("exit_reason", ""))
+        reason   = reason_map.get(t.get("exit_reason", ""), t.get("exit_reason", ""))
+        key      = f"trade_{t['ticker']}_{t['exit_date']}"
+        clickable = "cursor-pointer hover:text-cyan-300 underline" if charts.get(key) else ""
+        onclick   = f'onclick="showChart(\'{key}\')"' if charts.get(key) else ""
+
         trade_rows += f"""
         <tr class="hover:bg-slate-750 transition-colors">
-          <td class="px-4 py-3 font-mono text-cyan-400">{t.get('ticker','')}</td>
+          <td class="px-4 py-3 font-mono text-cyan-400 {clickable}" {onclick}>{t.get('ticker','')}</td>
+          <td class="px-4 py-3 text-slate-400">{t.get('entry_date','')}</td>
           <td class="px-4 py-3 text-slate-400">{t.get('exit_date','')}</td>
           <td class="px-4 py-3 text-right">{t.get('entry_price',0):,.0f}</td>
           <td class="px-4 py-3 text-right">{t.get('exit_price',0):,.0f}</td>
@@ -120,9 +309,9 @@ def build_html(state: dict, pnl: list, trades: list, pw_hash: str = PW_HASH) -> 
           <td class="px-4 py-3 text-right text-slate-400">{t.get('days_held',0)}日</td>
         </tr>"""
 
-    no_positions = '<tr><td colspan="9" class="px-4 py-6 text-center text-slate-500">保有なし</td></tr>' if not pos_rows else pos_rows
-    no_pending   = '<tr><td colspan="6" class="px-4 py-6 text-center text-slate-500">なし</td></tr>' if not pend_rows else pend_rows
-    no_trades    = '<tr><td colspan="8" class="px-4 py-6 text-center text-slate-500">決済トレードなし</td></tr>' if not trade_rows else trade_rows
+    no_positions = f'<tr><td colspan="9" class="px-4 py-6 text-center text-slate-500">保有なし</td></tr>' if not pos_rows else pos_rows
+    no_pending   = f'<tr><td colspan="6" class="px-4 py-6 text-center text-slate-500">なし</td></tr>' if not pend_rows else pend_rows
+    no_trades    = f'<tr><td colspan="9" class="px-4 py-6 text-center text-slate-500">決済トレードなし</td></tr>' if not trade_rows else trade_rows
 
     generated_at = datetime.now().strftime("%Y-%m-%d %H:%M JST")
 
@@ -148,6 +337,14 @@ def build_html(state: dict, pnl: list, trades: list, pw_hash: str = PW_HASH) -> 
     #pw-err {{ color:#f87171; font-size:13px; margin-top:8px; min-height:18px; }}
     @keyframes shake {{ 0%,100%{{transform:translateX(0)}} 20%,60%{{transform:translateX(-8px)}} 40%,80%{{transform:translateX(8px)}} }}
     .shake {{ animation: shake 0.4s ease; }}
+    #chart-modal {{ position:fixed; inset:0; background:rgba(0,0,0,0.85); display:none; align-items:center; justify-content:center; z-index:8888; }}
+    #chart-modal.open {{ display:flex; }}
+    #chart-box {{ background:#1e293b; border:1px solid #334155; border-radius:12px; padding:20px; max-width:920px; width:95%; position:relative; }}
+    #chart-close {{ position:absolute; top:12px; right:12px; background:#334155; border:none; color:#e2e8f0; padding:5px 12px; border-radius:6px; cursor:pointer; font-size:13px; }}
+    #chart-close:hover {{ background:#475569; }}
+    #chart-img {{ width:100%; border-radius:8px; margin-top:8px; display:block; }}
+    .ticker-link {{ cursor:pointer; text-decoration:underline; text-underline-offset:3px; }}
+    .ticker-link:hover {{ opacity:0.8; }}
   </style>
 </head>
 <body class="min-h-screen p-4 md:p-8">
@@ -161,6 +358,14 @@ def build_html(state: dict, pnl: list, trades: list, pw_hash: str = PW_HASH) -> 
       <input id="pw-input" type="password" placeholder="●●●●" maxlength="32" autofocus />
       <button id="pw-btn" onclick="checkPw()">ログイン</button>
       <div id="pw-err"></div>
+    </div>
+  </div>
+
+  <!-- チャートモーダル -->
+  <div id="chart-modal" onclick="if(event.target===this)closeChart()">
+    <div id="chart-box">
+      <button id="chart-close" onclick="closeChart()">✕ 閉じる</button>
+      <img id="chart-img" src="" alt="チャート" />
     </div>
   </div>
 
@@ -222,6 +427,7 @@ def build_html(state: dict, pnl: list, trades: list, pw_hash: str = PW_HASH) -> 
     <div class="px-5 py-4 border-b border-slate-700 flex items-center gap-2">
       <span class="w-2 h-2 rounded-full bg-cyan-400"></span>
       <h2 class="text-white font-semibold">保有ポジション（{len(positions)}件）</h2>
+      <span class="text-slate-500 text-xs ml-2">銘柄をクリックするとチャートを表示</span>
     </div>
     <div class="overflow-x-auto">
       <table class="w-full text-sm">
@@ -266,20 +472,22 @@ def build_html(state: dict, pnl: list, trades: list, pw_hash: str = PW_HASH) -> 
     </div>
   </div>
 
-  <!-- Trades -->
+  <!-- Trades（全件・スクロール） -->
   <div class="card mb-8 overflow-hidden">
     <div class="px-5 py-4 border-b border-slate-700 flex items-center gap-2">
       <span class="w-2 h-2 rounded-full bg-emerald-400"></span>
-      <h2 class="text-white font-semibold">決済トレード履歴（直近10件）</h2>
+      <h2 class="text-white font-semibold">決済トレード履歴（全{len(trades)}件）</h2>
+      <span class="text-slate-500 text-xs ml-2">銘柄をクリックするとチャートを表示</span>
     </div>
-    <div class="overflow-x-auto">
+    <div class="overflow-x-auto" style="max-height:480px; overflow-y:auto;">
       <table class="w-full text-sm">
-        <thead class="table-header">
+        <thead class="table-header" style="position:sticky;top:0;z-index:1;">
           <tr class="text-slate-400 text-xs">
             <th class="px-4 py-3 text-left">銘柄</th>
+            <th class="px-4 py-3 text-left">エントリー</th>
             <th class="px-4 py-3 text-left">決済日</th>
-            <th class="px-4 py-3 text-right">取得</th>
-            <th class="px-4 py-3 text-right">決済</th>
+            <th class="px-4 py-3 text-right">取得値</th>
+            <th class="px-4 py-3 text-right">決済値</th>
             <th class="px-4 py-3 text-right">損益</th>
             <th class="px-4 py-3 text-right">%</th>
             <th class="px-4 py-3 text-left">理由</th>
@@ -312,23 +520,34 @@ def build_html(state: dict, pnl: list, trades: list, pw_hash: str = PW_HASH) -> 
       }} else {{
         const box = document.getElementById("pw-box");
         document.getElementById("pw-err").textContent = "パスワードが違います";
-        box.classList.remove("shake");
-        void box.offsetWidth;
-        box.classList.add("shake");
+        box.classList.remove("shake"); void box.offsetWidth; box.classList.add("shake");
         document.getElementById("pw-input").value = "";
       }}
     }}
     document.getElementById("pw-input").addEventListener("keydown", e => {{ if(e.key==="Enter") checkPw(); }});
-    // セッション内は再入力不要
     if (sessionStorage.getItem("fx_auth") === "1") {{
       document.getElementById("pw-overlay").style.display = "none";
     }}
 
+    // チャートモーダル
+    const CHARTS = {charts_json};
+    function showChart(key) {{
+      const data = CHARTS[key];
+      if (!data) return;
+      document.getElementById("chart-img").src = "data:image/png;base64," + data;
+      document.getElementById("chart-modal").classList.add("open");
+    }}
+    function closeChart() {{
+      document.getElementById("chart-modal").classList.remove("open");
+      document.getElementById("chart-img").src = "";
+    }}
+    document.addEventListener("keydown", e => {{ if(e.key === "Escape") closeChart(); }});
+
+    // 口座額チャート
     const DATES  = {chart_dates};
     const EQUITY = {chart_equity};
     const DD     = {chart_dd};
 
-    // 口座額チャート
     new Chart(document.getElementById('equityChart'), {{
       type: 'line',
       data: {{
@@ -336,11 +555,8 @@ def build_html(state: dict, pnl: list, trades: list, pw_hash: str = PW_HASH) -> 
         datasets: [{{
           label: '評価額（万円）',
           data: EQUITY,
-          borderColor: '#22d3ee',
-          backgroundColor: 'rgba(34,211,238,0.08)',
-          borderWidth: 2,
-          fill: true,
-          tension: 0.3,
+          borderColor: '#22d3ee', backgroundColor: 'rgba(34,211,238,0.08)',
+          borderWidth: 2, fill: true, tension: 0.3,
           pointRadius: EQUITY.length > 20 ? 0 : 3,
         }}]
       }},
@@ -354,7 +570,6 @@ def build_html(state: dict, pnl: list, trades: list, pw_hash: str = PW_HASH) -> 
       }}
     }});
 
-    // DDチャート
     new Chart(document.getElementById('ddChart'), {{
       type: 'line',
       data: {{
@@ -362,12 +577,8 @@ def build_html(state: dict, pnl: list, trades: list, pw_hash: str = PW_HASH) -> 
         datasets: [{{
           label: 'DD（%）',
           data: DD,
-          borderColor: '#f87171',
-          backgroundColor: 'rgba(248,113,113,0.1)',
-          borderWidth: 1.5,
-          fill: true,
-          tension: 0.3,
-          pointRadius: 0,
+          borderColor: '#f87171', backgroundColor: 'rgba(248,113,113,0.1)',
+          borderWidth: 1.5, fill: true, tension: 0.3, pointRadius: 0,
         }}]
       }},
       options: {{
