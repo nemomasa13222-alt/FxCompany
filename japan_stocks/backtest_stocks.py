@@ -558,3 +558,270 @@ def save_report(
 
     path.write_text("\n".join(lines), encoding="utf-8")
     print(f"  レポート保存: {path.name}")
+
+
+# ── クロスセクター版 ─────────────────────────────────────────────────────────
+
+@dataclass
+class _PositionCS:
+    ticker:          str
+    sector:          str
+    entry_date:      pd.Timestamp
+    entry_price:     float
+    shares:          int
+    stop_price:      float
+    sector_at_entry: float
+    days_held:       int = 0
+
+
+@dataclass
+class _PendingEntryCS:
+    ticker:           str
+    sector:           str
+    close_price:      float
+    sector_at_signal: float
+    gap_at_signal:    float
+
+
+def _gap_cs(sec_idx: pd.Series, stock_close: pd.Series, i: int, lookback: int) -> float:
+    """bar i 時点のセクター-銘柄 5日乖離率"""
+    try:
+        sn = float(sec_idx.iat[i]);     sp = float(sec_idx.iat[i - lookback])
+        cn = float(stock_close.iat[i]); cp = float(stock_close.iat[i - lookback])
+        if any(pd.isna(v) for v in (sn, sp, cn, cp)) or sp <= 0 or cp <= 0:
+            return -999.0
+        return (sn/sp - 1)*100 - (cn/cp - 1)*100
+    except Exception:
+        return -999.0
+
+
+def run_cross_sector(
+    sector_indices:      dict[str, pd.Series],
+    sector_stocks_all:   dict[str, dict[str, pd.DataFrame]],
+    sector_opens_all:    dict[str, dict[str, pd.Series]],
+    active_sector_dates: dict[str, set],
+    class_caches:        dict[str, dict],
+    unified_dates:       "list[pd.Timestamp]",
+    config:              BacktestConfig,
+) -> "list[Trade]":
+    """
+    クロスセクター共有資本プール版バックテスト。
+    全セクターで MAX_POSITIONS を共有し、乖離率比較によるポジション回転を行う。
+    """
+    # 各セクターの系列をunified_datesにリインデックス
+    sec_aligned:    dict[str, pd.Series]              = {}
+    closes_aligned: dict[str, dict[str, pd.Series]]   = {}
+    opens_aligned:  dict[str, dict[str, pd.Series]]   = {}
+
+    for name, idx in sector_indices.items():
+        sec_aligned[name] = idx.reindex(unified_dates)
+
+    for name, stocks in sector_stocks_all.items():
+        closes_aligned[name] = {}
+        for ticker, df in stocks.items():
+            col = "AdjustmentClose" if "AdjustmentClose" in df.columns else "Close"
+            closes_aligned[name][ticker] = (
+                pd.to_numeric(df[col], errors="coerce").reindex(unified_dates)
+            )
+
+    for name, opens in sector_opens_all.items():
+        opens_aligned[name] = {}
+        for ticker, s in opens.items():
+            opens_aligned[name][ticker] = (
+                pd.to_numeric(s, errors="coerce").reindex(unified_dates)
+            )
+
+    trades:   list[Trade]          = []
+    positions: list[_PositionCS]   = []
+    pending:   list[_PendingEntryCS] = []
+    capital      = config.initial_capital
+    peak_capital = config.initial_capital
+    lookback     = config.sector_lookback
+    n            = len(unified_dates)
+
+    for i in range(config.classification_window, n):
+        today = unified_dates[i]
+
+        # ── Step 1: pending → 今日の寄りでエントリー ────────────────────────
+        new_pending: list[_PendingEntryCS] = []
+        for pend in pending:
+            if len(positions) >= config.max_positions:
+                new_pending.append(pend)
+                continue
+            op_s = opens_aligned.get(pend.sector, {}).get(pend.ticker)
+            if op_s is not None and not pd.isna(op_s.iat[i]):
+                ep = float(op_s.iat[i])
+            else:
+                ep = pend.close_price
+            if ep <= 0:
+                continue
+            risk    = capital * config.risk_pct / 100
+            sd_jpy  = ep * config.stop_dist_pct / 100
+            shares  = int(risk / sd_jpy)
+            if shares < 1:
+                continue
+            positions.append(_PositionCS(
+                ticker=pend.ticker, sector=pend.sector,
+                entry_date=today, entry_price=ep, shares=shares,
+                stop_price=ep * (1 - config.stop_dist_pct / 100),
+                sector_at_entry=pend.sector_at_signal,
+            ))
+        pending = new_pending
+
+        # ── Step 2: 保有ポジション決済チェック ──────────────────────────────
+        still_open: list[_PositionCS] = []
+        for pos in positions:
+            cs = closes_aligned.get(pos.sector, {}).get(pos.ticker)
+            if cs is None or pd.isna(cs.iat[i]):
+                still_open.append(pos); continue
+            price_now = float(cs.iat[i])
+            pos.days_held += 1
+            reason     = None
+            exit_price = price_now
+
+            if price_now <= pos.stop_price:
+                reason = "stop"; exit_price = pos.stop_price
+            elif pos.days_held >= config.max_hold_days:
+                reason = "time"
+            elif i >= lookback:
+                si2   = sec_aligned[pos.sector]
+                sn    = float(si2.iat[i])
+                sp2   = float(si2.iat[i - lookback])
+                stk_p = float(cs.iat[i - lookback])
+                if (not pd.isna(sp2) and not pd.isna(stk_p)
+                        and sp2 > 0 and stk_p > 0):
+                    if ((sn/sp2 - 1)*100 - (price_now/stk_p - 1)*100
+                            <= config.target_gap_exit):
+                        reason = "target"
+
+            if reason:
+                cost = pos.entry_price * pos.shares * config.round_trip_cost_pct / 100
+                t = Trade(
+                    ticker=pos.ticker, sector_name=pos.sector,
+                    entry_date=pos.entry_date, entry_price=pos.entry_price,
+                    exit_date=today, exit_price=exit_price,
+                    shares=pos.shares, exit_reason=reason, cost_jpy=cost,
+                )
+                trades.append(t)
+                capital += t.net_pnl_jpy
+                peak_capital = max(peak_capital, capital)
+            else:
+                still_open.append(pos)
+        positions = still_open
+
+        # ── DD制限 ──────────────────────────────────────────────────────────
+        if (config.portfolio_dd_limit_pct > 0 and peak_capital > 0
+                and capital / peak_capital < 1 - config.portfolio_dd_limit_pct / 100):
+            continue
+        if i < lookback:
+            continue
+
+        # ── Step 3: 全アクティブセクターからシグナル収集 ────────────────────
+        open_tickers    = {p.ticker for p in positions}
+        pending_tickers = {p.ticker for p in pending}
+
+        all_cands: list[dict] = []
+        for name, si2 in sec_aligned.items():
+            if today not in (active_sector_dates.get(name) or set()):
+                continue
+            sn = si2.iat[i]; sp2 = si2.iat[i - lookback]
+            if pd.isna(sn) or pd.isna(sp2) or sp2 <= 0:
+                continue
+            sec_chg = (sn / sp2 - 1) * 100
+            if sec_chg < config.sector_min_rise:
+                continue
+            cache      = class_caches.get(name, {})
+            cls_today  = _latest_classification(cache, i) if cache else {}
+            for ticker, cs2 in closes_aligned.get(name, {}).items():
+                if ticker in open_tickers or ticker in pending_tickers:
+                    continue
+                cls, corr = cls_today.get(ticker, (None, 0.0))
+                if cls not in config.target_classes or corr < config.min_corr:
+                    continue
+                cn2 = cs2.iat[i]; cp2 = cs2.iat[i - lookback]
+                if pd.isna(cn2) or pd.isna(cp2) or cp2 <= 0:
+                    continue
+                gap = sec_chg - (cn2 / cp2 - 1) * 100
+                if gap < config.min_gap:
+                    continue
+                all_cands.append(dict(
+                    ticker=ticker, sector=name, gap=gap,
+                    close=float(cn2), sec_now=float(sn),
+                ))
+
+        all_cands.sort(key=lambda x: x["gap"], reverse=True)
+
+        # ── スロットを埋める ─────────────────────────────────────────────────
+        slots = config.max_positions - len(positions) - len(pending)
+        added_tickers: set[str] = set()
+        for cand in all_cands[:slots]:
+            if cand["ticker"] not in pending_tickers and cand["ticker"] not in added_tickers:
+                pending.append(_PendingEntryCS(
+                    ticker=cand["ticker"], sector=cand["sector"],
+                    close_price=cand["close"], sector_at_signal=cand["sec_now"],
+                    gap_at_signal=cand["gap"],
+                ))
+                added_tickers.add(cand["ticker"])
+
+        # ── 回転候補チェック ─────────────────────────────────────────────────
+        remaining = [c for c in all_cands[slots:] if c["ticker"] not in pending_tickers]
+        if remaining and positions:
+            pos_gaps = sorted(
+                [
+                    (pos, _gap_cs(
+                        sec_aligned[pos.sector],
+                        closes_aligned[pos.sector][pos.ticker],
+                        i, lookback,
+                    ))
+                    for pos in positions
+                    if pos.ticker in closes_aligned.get(pos.sector, {})
+                ],
+                key=lambda x: x[1],
+            )
+            pending_tickers2 = {p.ticker for p in pending}
+            for cand in remaining:
+                if not pos_gaps:
+                    break
+                weakest_pos, weakest_gap = pos_gaps[0]
+                if cand["gap"] <= weakest_gap:
+                    break  # sorted descending by cand gap, no point continuing
+                if cand["ticker"] in pending_tickers2:
+                    continue
+                cs2 = closes_aligned.get(weakest_pos.sector, {}).get(weakest_pos.ticker)
+                if cs2 is None or pd.isna(cs2.iat[i]):
+                    pos_gaps.pop(0); continue
+                ep_rot = float(cs2.iat[i])
+                cost   = weakest_pos.entry_price * weakest_pos.shares * config.round_trip_cost_pct / 100
+                t = Trade(
+                    ticker=weakest_pos.ticker, sector_name=weakest_pos.sector,
+                    entry_date=weakest_pos.entry_date, entry_price=weakest_pos.entry_price,
+                    exit_date=today, exit_price=ep_rot,
+                    shares=weakest_pos.shares, exit_reason="rotate", cost_jpy=cost,
+                )
+                trades.append(t)
+                capital += t.net_pnl_jpy
+                peak_capital = max(peak_capital, capital)
+                positions.remove(weakest_pos)
+                pos_gaps.pop(0)
+                pending.append(_PendingEntryCS(
+                    ticker=cand["ticker"], sector=cand["sector"],
+                    close_price=cand["close"], sector_at_signal=cand["sec_now"],
+                    gap_at_signal=cand["gap"],
+                ))
+                pending_tickers2.add(cand["ticker"])
+
+    # ── 最終日強制決済 ──────────────────────────────────────────────────────────
+    last_i, last_date = n - 1, unified_dates[-1]
+    for pos in positions:
+        cs = closes_aligned.get(pos.sector, {}).get(pos.ticker)
+        if cs is None: continue
+        lc = cs.iat[last_i]
+        if pd.isna(lc): continue
+        cost = pos.entry_price * pos.shares * config.round_trip_cost_pct / 100
+        trades.append(Trade(
+            ticker=pos.ticker, sector_name=pos.sector,
+            entry_date=pos.entry_date, entry_price=pos.entry_price,
+            exit_date=last_date, exit_price=float(lc),
+            shares=pos.shares, exit_reason="end", cost_jpy=cost,
+        ))
+    return trades
