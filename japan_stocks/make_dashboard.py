@@ -58,16 +58,29 @@ def build_html(state: dict, pnl: list, trades: list, pw_hash: str = PW_HASH) -> 
     # Positions rows
     pos_rows = ""
     for p in positions:
-        days   = p.get("days_held", 0)
-        stop   = p.get("stop_price", 0)
-        entry  = p.get("entry_price", 0)
-        shares = p.get("shares", 0)
-        invest = round(entry * shares)
+        days    = p.get("days_held", 0)
+        stop    = p.get("stop_price", 0)
+        entry   = p.get("entry_price", 0)
+        shares  = p.get("shares", 0)
+        invest  = round(entry * shares)
+        cur     = p.get("current_price")
+        unreal  = p.get("unrealized_pnl")
+        if cur is not None:
+            ret_p   = (cur / entry - 1) * 100 if entry else 0
+            cur_str = f"{cur:,.0f}"
+            ret_col = "#22c55e" if ret_p >= 0 else "#ef4444"
+            unreal_str = f"{'+'if unreal>=0 else ''}{unreal:,.0f}円<br><span style='font-size:11px'>({ret_p:+.2f}%)</span>"
+        else:
+            cur_str    = "—"
+            ret_col    = "#64748b"
+            unreal_str = "—"
         pos_rows += f"""
         <tr class="hover:bg-slate-750 transition-colors">
           <td class="px-4 py-3 font-mono font-bold text-cyan-400">{p['ticker']}</td>
           <td class="px-4 py-3 text-slate-300">{p['sector']}</td>
           <td class="px-4 py-3 text-right">{entry:,.0f}</td>
+          <td class="px-4 py-3 text-right font-bold">{cur_str}</td>
+          <td class="px-4 py-3 text-right font-bold" style="color:{ret_col}">{unreal_str}</td>
           <td class="px-4 py-3 text-right">{shares:,}</td>
           <td class="px-4 py-3 text-right text-slate-400">{invest:,}</td>
           <td class="px-4 py-3 text-right text-orange-400">{stop:,.0f}</td>
@@ -107,7 +120,7 @@ def build_html(state: dict, pnl: list, trades: list, pw_hash: str = PW_HASH) -> 
           <td class="px-4 py-3 text-right text-slate-400">{t.get('days_held',0)}日</td>
         </tr>"""
 
-    no_positions = '<tr><td colspan="7" class="px-4 py-6 text-center text-slate-500">保有なし</td></tr>' if not pos_rows else pos_rows
+    no_positions = '<tr><td colspan="9" class="px-4 py-6 text-center text-slate-500">保有なし</td></tr>' if not pos_rows else pos_rows
     no_pending   = '<tr><td colspan="6" class="px-4 py-6 text-center text-slate-500">なし</td></tr>' if not pend_rows else pend_rows
     no_trades    = '<tr><td colspan="8" class="px-4 py-6 text-center text-slate-500">決済トレードなし</td></tr>' if not trade_rows else trade_rows
 
@@ -217,6 +230,8 @@ def build_html(state: dict, pnl: list, trades: list, pw_hash: str = PW_HASH) -> 
             <th class="px-4 py-3 text-left">銘柄</th>
             <th class="px-4 py-3 text-left">業種</th>
             <th class="px-4 py-3 text-right">取得値</th>
+            <th class="px-4 py-3 text-right">現在値</th>
+            <th class="px-4 py-3 text-right">含み損益</th>
             <th class="px-4 py-3 text-right">保有株数</th>
             <th class="px-4 py-3 text-right">投資額</th>
             <th class="px-4 py-3 text-right">ストップ</th>

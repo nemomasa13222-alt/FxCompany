@@ -510,7 +510,7 @@ def save_pnl_snapshot(
 ):
     capital = state["capital"]
 
-    # 含み損益を計算
+    # 含み損益を計算（ポジションごとに現在値も保存）
     unrealized = 0.0
     for pos in state["positions"]:
         stocks = sector_stocks.get(pos["sector"], {})
@@ -522,7 +522,10 @@ def save_pnl_snapshot(
             if not avail.empty:
                 now_p = float(avail.iloc[-1])
                 if not np.isnan(now_p):
-                    unrealized += (now_p - pos["entry_price"]) * pos["shares"]
+                    pos_unreal = (now_p - pos["entry_price"]) * pos["shares"]
+                    unrealized += pos_unreal
+                    pos["current_price"]   = round(now_p, 1)
+                    pos["unrealized_pnl"]  = round(pos_unreal)
 
     total_equity   = capital + unrealized
     realized_pnl   = state.get("total_realized_pnl", 0)

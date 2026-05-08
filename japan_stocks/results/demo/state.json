@@ -10,9 +10,11 @@
       "shares": 47,
       "stop_price": 6926.5,
       "sector_at_entry": 321.7,
-      "days_held": 1,
+      "days_held": 2,
       "signal_gap_pct": 14.75,
-      "corr": 0.642
+      "corr": 0.642,
+      "current_price": 7190.0,
+      "unrealized_pnl": 7426
     },
     {
       "ticker": "5334.T",
@@ -22,9 +24,11 @@
       "shares": 41,
       "stop_price": 7842.6,
       "sector_at_entry": 321.7,
-      "days_held": 1,
+      "days_held": 2,
       "signal_gap_pct": 7.85,
-      "corr": 0.612
+      "corr": 0.612,
+      "current_price": 8083.0,
+      "unrealized_pnl": 4961
     },
     {
       "ticker": "4045.T",
@@ -34,9 +38,11 @@
       "shares": 194,
       "stop_price": 1689.8,
       "sector_at_entry": 232.2,
-      "days_held": 1,
+      "days_held": 2,
       "signal_gap_pct": 5.95,
-      "corr": 0.79
+      "corr": 0.79,
+      "current_price": 1734.0,
+      "unrealized_pnl": 3589
     }
   ],
   "pending": [],
