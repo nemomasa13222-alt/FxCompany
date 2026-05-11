@@ -1,2 +1,4 @@
 ﻿exit_date,ticker,sector,entry_date,entry_price,exit_price,shares,exit_reason,pnl_jpy,return_pct,days_held
 2026-05-08,5214.T,ガラス･土石製品,2026-05-08,7125.0,7018.1,46,stop,-5573,-1.5,1
+2026-05-11,5334.T,ガラス･土石製品,2026-05-08,8171.0,8048.4,40,stop,-5558,-1.5,2
+2026-05-11,4045.T,化学,2026-05-08,1724.0,1719.0,193,rotate,-1630,-0.29,2
