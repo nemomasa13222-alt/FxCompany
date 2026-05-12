@@ -1,46 +1,49 @@
 {
-  "capital": 987238.8559999999,
+  "capital": 976174.232,
   "peak_capital": 1000000,
-  "positions": [],
-  "pending": [
+  "positions": [
     {
       "ticker": "5344.T",
       "sector": "ガラス･土石製品",
-      "signal_date": "2026-05-11",
-      "signal_close": 68930.0,
-      "sector_at_signal": 332.05,
-      "sector_rise_pct": 4.2,
-      "stock_rise_pct": -6.64,
-      "gap_pct": 10.84,
+      "entry_date": "2026-05-12",
+      "entry_price": 64520.0,
+      "shares": 5,
+      "stop_price": 63552.2,
+      "sector_at_entry": 332.05,
+      "days_held": 1,
+      "signal_gap_pct": 10.84,
       "corr": 0.638,
+      "current_price": 64520.0,
+      "unrealized_pnl": 0
+    }
+  ],
+  "pending": [
+    {
+      "ticker": "2768.T",
+      "sector": "卸売業",
+      "signal_date": "2026-05-12",
+      "signal_close": 5726.0,
+      "sector_at_signal": 300.75,
+      "sector_rise_pct": 3.04,
+      "stock_rise_pct": -4.1,
+      "gap_pct": 7.15,
+      "corr": 0.654,
       "classification": "中間株"
     },
     {
       "ticker": "5201.T",
       "sector": "ガラス･土石製品",
-      "signal_date": "2026-05-11",
-      "signal_close": 5580.0,
-      "sector_at_signal": 332.05,
-      "sector_rise_pct": 4.2,
-      "stock_rise_pct": -1.92,
-      "gap_pct": 6.12,
-      "corr": 0.776,
-      "classification": "中間株"
-    },
-    {
-      "ticker": "2768.T",
-      "sector": "卸売業",
-      "signal_date": "2026-05-11",
-      "signal_close": 5690.0,
-      "sector_at_signal": 297.05,
-      "sector_rise_pct": 2.67,
-      "stock_rise_pct": -2.32,
-      "gap_pct": 4.98,
-      "corr": 0.658,
+      "signal_date": "2026-05-12",
+      "signal_close": 5636.0,
+      "sector_at_signal": 334.08,
+      "sector_rise_pct": 3.66,
+      "stock_rise_pct": -2.05,
+      "gap_pct": 5.71,
+      "corr": 0.775,
       "classification": "中間株"
     }
   ],
-  "last_run": "2026-05-11",
-  "total_realized_pnl": -12761.144000000015,
-  "trade_count": 3
+  "last_run": "2026-05-12",
+  "total_realized_pnl": -23825.768000000025,
+  "trade_count": 5
 }
