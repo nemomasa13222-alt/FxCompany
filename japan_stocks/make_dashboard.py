@@ -125,11 +125,18 @@ def chart_trade(ticker: str, entry_date_str: str, entry_price: float,
         ec     = exit_colors.get(exit_reason, "#94a3b8")
 
         if same_day:
-            df = yf.download(ticker, period="1d", interval="5m", progress=False)
+            today_str = datetime.today().strftime("%Y-%m-%d")
+            if exit_date_str == today_str:
+                df = yf.download(ticker, period="1d", interval="5m", progress=False)
+            else:
+                end_dt = (pd.Timestamp(exit_date_str) + pd.Timedelta(days=1)).strftime("%Y-%m-%d")
+                df = yf.download(ticker, start=exit_date_str, end=end_dt, interval="5m", progress=False)
             if df.empty: return ""
             if isinstance(df.columns, pd.MultiIndex):
                 df.columns = df.columns.get_level_values(0)
             df.index = df.index.tz_convert("Asia/Tokyo")
+            # 指定日のバーだけに絞る
+            df = df[df.index.normalize().strftime("%Y-%m-%d") == exit_date_str]
             df = df[["Open", "High", "Low", "Close", "Volume"]].dropna()
             fmt = "%H:%M"
             xi_entry = 0
