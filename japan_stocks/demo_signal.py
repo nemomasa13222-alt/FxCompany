@@ -293,9 +293,20 @@ def execute_pending(
                 _log(f"  [5分足取得失敗] {ticker}: {e}")
 
         if open_price is None:
-            _log(f"  [警告] {ticker} の寄り値が取得できません。シグナル引け値を使用")
+            # 前日終値をフォールバックとして使用（signal_close は古い可能性があるため使わない）
+            prev_close = None
+            closes = sector_stocks.get(sector, {}).get(ticker)
+            if closes is not None:
+                c_ser = closes["Close"] if isinstance(closes, pd.DataFrame) else closes
+                avail = c_ser[c_ser.index < today]
+                if not avail.empty:
+                    prev_close = float(avail.iloc[-1])
+            if prev_close:
+                _log(f"  [警告] {ticker} の寄り値が取得できません。前日終値 {prev_close:,.0f}円 を使用")
+            else:
+                _log(f"  [警告] {ticker} の寄り値も前日終値も取得できません。シグナル引け値を使用")
 
-        entry_price = open_price or p["signal_close"]
+        entry_price = open_price or prev_close or p["signal_close"]
         if entry_price <= 0:
             continue
 
