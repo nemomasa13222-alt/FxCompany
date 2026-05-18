@@ -1,5 +1,5 @@
 {
-  "capital": 1040544.274,
+  "capital": 1028932.634,
   "peak_capital": 1040544.274,
   "positions": [
     {
@@ -10,40 +10,40 @@
       "shares": 118,
       "stop_price": 2685.1,
       "sector_at_entry": 245.26,
-      "days_held": 1,
+      "days_held": 2,
       "signal_gap_pct": 15.39,
       "corr": 0.698,
-      "current_price": 2756.0,
-      "unrealized_pnl": 3540
+      "current_price": 2778.0,
+      "unrealized_pnl": 6136
     }
   ],
   "pending": [
     {
-      "ticker": "3110.T",
-      "sector": "ガラス･土石製品",
-      "signal_date": "2026-05-15",
-      "signal_close": 26190.0,
-      "sector_at_signal": 353.42,
-      "sector_rise_pct": 6.11,
-      "stock_rise_pct": -18.03,
-      "gap_pct": 24.14,
-      "corr": 0.601,
+      "ticker": "4044.T",
+      "sector": "化学",
+      "signal_date": "2026-05-18",
+      "signal_close": 3945.0,
+      "sector_at_signal": 247.62,
+      "sector_rise_pct": 2.63,
+      "stock_rise_pct": -6.85,
+      "gap_pct": 9.48,
+      "corr": 0.692,
       "classification": "中間株"
     },
     {
-      "ticker": "4044.T",
+      "ticker": "4041.T",
       "sector": "化学",
-      "signal_date": "2026-05-15",
-      "signal_close": 3880.0,
-      "sector_at_signal": 254.59,
-      "sector_rise_pct": 6.02,
-      "stock_rise_pct": -8.92,
-      "gap_pct": 14.94,
-      "corr": 0.751,
+      "signal_date": "2026-05-18",
+      "signal_close": 3460.0,
+      "sector_at_signal": 247.62,
+      "sector_rise_pct": 2.63,
+      "stock_rise_pct": -5.46,
+      "gap_pct": 8.1,
+      "corr": 0.657,
       "classification": "中間株"
     }
   ],
-  "last_run": "2026-05-15",
-  "total_realized_pnl": 40544.274,
-  "trade_count": 9
+  "last_run": "2026-05-18",
+  "total_realized_pnl": 28932.634,
+  "trade_count": 11
 }
