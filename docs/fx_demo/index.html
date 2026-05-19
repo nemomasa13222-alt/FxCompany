@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="refresh" content="1800">
+<title>FxDemo ダッシュボード | USDJPY 30分足</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: #0f0f23; color: #e0e0e0; font-family: 'Segoe UI', sans-serif; padding: 20px; }
+  .header { text-align: center; margin-bottom: 24px; }
+  .header h1 { font-size: 1.6rem; color: #fff; }
+  .header .sub { color: #888; font-size: 0.85rem; margin-top: 4px; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 16px; margin-bottom: 24px; }
+  .card { background: #1a1a3e; border-radius: 12px; padding: 20px; text-align: center; }
+  .card .label { font-size: 0.75rem; color: #888; margin-bottom: 8px; }
+  .card .value { font-size: 1.5rem; font-weight: bold; }
+  .card .value.pos { color: #2ecc71; }
+  .card .value.neg { color: #e74c3c; }
+  .card .value.neu { color: #f1c40f; }
+  .section { background: #1a1a3e; border-radius: 12px; padding: 20px; margin-bottom: 20px; }
+  .section h2 { font-size: 1rem; color: #aaa; margin-bottom: 16px; border-bottom: 1px solid #333; padding-bottom: 8px; }
+  .position-card { background: #16213e; border-radius: 8px; padding: 12px 16px; display: flex; gap: 20px; align-items: center; flex-wrap: wrap; }
+  .position-card.none { color: #666; }
+  .pos-badge { padding: 4px 12px; border-radius: 20px; font-weight: bold; font-size: 0.85rem; }
+  .pos-badge.long { background: #1a5c35; color: #2ecc71; }
+  .pos-badge.short { background: #5c1a1a; color: #e74c3c; }
+  .trade-table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+  .trade-table th { color: #888; font-weight: normal; padding: 8px; text-align: left; border-bottom: 1px solid #333; }
+  .trade-table td { padding: 8px; border-bottom: 1px solid #1f1f3a; }
+  .trade-table td.long { color: #2ecc71; }
+  .trade-table td.short { color: #e74c3c; }
+  .no-data { color: #555; text-align: center; padding: 20px; }
+  canvas { max-height: 220px; }
+  .footer { text-align: center; color: #444; font-size: 0.75rem; margin-top: 24px; }
+  @media (max-width: 600px) { .grid { grid-template-columns: repeat(2, 1fr); } }
+</style>
+</head>
+<body>
+<div class="header">
+  <h1>FxDemo ダッシュボード</h1>
+  <div class="sub">USDJPY 30分足 レンジブレイク  |  最終更新: 2026-05-19 22:47</div>
+</div>
+
+<div class="grid">
+  <div class="card">
+    <div class="label">有効証拠金</div>
+    <div class="value neg">10,000<span style="font-size:0.9rem">円</span></div>
+  </div>
+  <div class="card">
+    <div class="label">収益率</div>
+    <div class="value neg">-90.00<span style="font-size:0.9rem">%</span></div>
+  </div>
+  <div class="card">
+    <div class="label">総損益</div>
+    <div class="value pos">+0<span style="font-size:0.9rem">円</span></div>
+  </div>
+  <div class="card">
+    <div class="label">勝率</div>
+    <div class="value neu">0.0<span style="font-size:0.9rem">%</span></div>
+  </div>
+  <div class="card">
+    <div class="label">PF</div>
+    <div class="value neu">0.00</div>
+  </div>
+  <div class="card">
+    <div class="label">トレード数</div>
+    <div class="value neu">0<span style="font-size:0.9rem">件</span></div>
+  </div>
+  <div class="card">
+    <div class="label">累計pips</div>
+    <div class="value pos">+0.0<span style="font-size:0.9rem">p</span></div>
+  </div>
+  <div class="card">
+    <div class="label">平均保有</div>
+    <div class="value neu">0.0<span style="font-size:0.9rem">h</span></div>
+  </div>
+</div>
+
+<div class="section">
+  <h2>現在のポジション</h2>
+  <div class="position-card none">ポジションなし</div>
+</div>
+
+
+
+<div class="section">
+  <h2>直近20件のトレード履歴</h2>
+  <p class="no-data">まだトレードはありません</p>
+</div>
+
+<div class="footer">
+  初期資金: 100,000円 / ロット: 0.1 /
+  戦略: bars=6 pips=15 hold=3 / XMTrading Demo
+  <br>30分ごと自動更新
+</div>
+
+<script>
+
+</script>
+</body>
+</html>
