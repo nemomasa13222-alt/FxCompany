@@ -41,7 +41,7 @@ RESULTS_DIR = Path(__file__).parent / "results" / "backtest_v2"
 RESULTS_DIR.mkdir(parents=True, exist_ok=True)
 
 # 全期間終端
-FULL_END = "2026-05-08"
+FULL_END = "2026-05-20"
 
 # ── ベースパラメータ（v2-f採用設定） ────────────────────────────────────────
 BASE_CONFIG = dict(
