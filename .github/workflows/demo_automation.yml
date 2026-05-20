@@ -2,7 +2,7 @@
 
 on:
   schedule:
-    - cron: '0 7 * * 1-5'   # 平日 16:00 JST (= 07:00 UTC)
+    - cron: '0 11 * * 1-5'  # 平日 20:00 JST (= 11:00 UTC) J-Quants配信後
   workflow_dispatch:          # GitHub画面から手動実行も可能
 
 permissions:
