@@ -725,12 +725,16 @@ def save_pnl_snapshot(
         row = pd.concat([existing, row], ignore_index=True)
     row.to_csv(PNL_FILE, index=False, encoding="utf-8-sig")
 
-    # 決済トレードをCSVへ追記
+    # 決済トレードをCSVへ追記（重複防止）
     if closed_trades:
         trades_df = pd.DataFrame(closed_trades)
         if TRADES_FILE.exists():
             existing_t = pd.read_csv(TRADES_FILE, encoding="utf-8-sig")
             trades_df = pd.concat([existing_t, trades_df], ignore_index=True)
+            trades_df = trades_df.drop_duplicates(
+                subset=["exit_date", "ticker", "entry_date", "entry_price"],
+                keep="first"
+            )
         trades_df.to_csv(TRADES_FILE, index=False, encoding="utf-8-sig")
 
     return total_equity, ret_pct, dd_pct, unrealized
