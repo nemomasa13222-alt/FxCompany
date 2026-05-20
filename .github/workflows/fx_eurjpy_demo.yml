@@ -1,0 +1,45 @@
+name: EURJPY デモ運用 日次自動実行
+
+on:
+  workflow_dispatch:           # 手動のみ（スケジュール停止 2026-05-20）
+
+permissions:
+  contents: write              # trades.csv/summary.jsonをコミットするために必要
+
+jobs:
+  eurjpy_demo:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: リポジトリをチェックアウト
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Python 3.12 セットアップ
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: 依存パッケージインストール
+        run: pip install pandas numpy scipy pyarrow
+
+      - name: fx_demo ディレクトリ確認
+        run: mkdir -p fx_demo
+
+      - name: シグナル生成・架空執行（eurjpy_signal.py）
+        run: python fx_demo/eurjpy_signal.py
+        env:
+          PYTHONIOENCODING: utf-8
+
+      - name: trades.csv / summary.json をコミットしてプッシュ
+        run: |
+          git config user.name "FxCompany Demo Bot"
+          git config user.email "demo-bot@fxcompany.local"
+          git add fx_demo/trades.csv fx_demo/summary.json
+          git diff --staged --quiet && echo "変更なし" || (
+            DATE=$(date '+%Y-%m-%d')
+            git commit -m "demo: EURJPY ${DATE} 自動更新 [skip ci]" &&
+            git push
+          )
