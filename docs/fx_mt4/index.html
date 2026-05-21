@@ -32,21 +32,21 @@ canvas{max-height:240px}
 <body>
 <div class="header">
   <h1>FxDemo MT4 ダッシュボード</h1>
-  <div class="sub">USDJPY M30 レンジブレイク &nbsp;|&nbsp; 最終更新: 2026-05-21 21:30</div>
+  <div class="sub">USDJPY M30 レンジブレイク &nbsp;|&nbsp; 最終更新: 2026-05-21 22:00</div>
 </div>
 
 <div class="grid">
   <div class="card">
     <div class="label">口座残高</div>
-    <div class="value neg">989,986<span style="font-size:.85rem">円</span></div>
+    <div class="value neg">985,122<span style="font-size:.85rem">円</span></div>
   </div>
   <div class="card">
     <div class="label">収益率</div>
-    <div class="value neg">-1.00<span style="font-size:.85rem">%</span></div>
+    <div class="value neg">-1.49<span style="font-size:.85rem">%</span></div>
   </div>
   <div class="card">
     <div class="label">累積損益</div>
-    <div class="value neg">-10,014<span style="font-size:.85rem">円</span></div>
+    <div class="value neg">-14,878<span style="font-size:.85rem">円</span></div>
   </div>
   <div class="card">
     <div class="label">勝率</div>
@@ -58,15 +58,15 @@ canvas{max-height:240px}
   </div>
   <div class="card">
     <div class="label">トレード数</div>
-    <div class="value neu">2<span style="font-size:.85rem">件</span></div>
+    <div class="value neu">3<span style="font-size:.85rem">件</span></div>
   </div>
   <div class="card">
     <div class="label">累計pips</div>
-    <div class="value neg">-15.0<span style="font-size:.85rem">p</span></div>
+    <div class="value neg">-30.2<span style="font-size:.85rem">p</span></div>
   </div>
   <div class="card">
     <div class="label">最大DD</div>
-    <div class="value neg">0.5<span style="font-size:.85rem">%</span></div>
+    <div class="value neg">1.0<span style="font-size:.85rem">%</span></div>
   </div>
 </div>
 
@@ -76,7 +76,7 @@ canvas{max-height:240px}
 </div>
 
 <div class="section">
-  <h2>保有ポジション &nbsp;<span style="font-size:.8rem;color:#666">（1件 / 有効証拠金: 992,098円）</span></h2>
+  <h2>保有ポジション &nbsp;<span style="font-size:.8rem;color:#666">（0件 / 有効証拠金: 982,544円）</span></h2>
   <div class="tbl"><table>
     <thead>
       <tr>
@@ -85,8 +85,7 @@ canvas{max-height:240px}
         <th>含み損益</th><th>建値時刻</th>
       </tr>
     </thead>
-    <tbody><tr><td>#129400910</td><td class='short'>SELL</td><td>0.32</td><td>158.859</td><td>159.011</td><td class='pos'>+2,112円</td><td>2026.05.20 18:00</td></tr>
-</tbody>
+    <tbody><tr><td colspan='7' style='text-align:center;color:#555'>保有ポジションなし</td></tr></tbody>
   </table></div>
 </div>
 
@@ -100,7 +99,8 @@ canvas{max-height:240px}
         <th>pips</th><th>損益</th><th>保有</th>
       </tr>
     </thead>
-    <tbody><tr><td>05/20 17:16</td><td class='long'>BUY</td><td>0.54</td><td>159.11500</td><td>159.02300</td><td class='neg'>-9.2p</td><td class='neg'>-4,968円</td><td>1本</td></tr>
+    <tbody><tr><td>05/21 07:58</td><td class='short'>SELL</td><td>0.32</td><td>158.85900</td><td>159.01100</td><td class='neg'>-15.2p</td><td class='neg'>-4,864円</td><td>43本</td></tr>
+<tr><td>05/20 17:16</td><td class='long'>BUY</td><td>0.54</td><td>159.11500</td><td>159.02300</td><td class='neg'>-9.2p</td><td class='neg'>-4,968円</td><td>1本</td></tr>
 <tr><td>05/20 14:02</td><td class='short'>SELL</td><td>0.87</td><td>158.98600</td><td>159.04400</td><td class='neg'>-5.8p</td><td class='neg'>-5,046円</td><td>1本</td></tr>
 </tbody>
   </table></div>
@@ -112,7 +112,7 @@ canvas{max-height:240px}
 </div>
 
 <script>
-const raw = [{"t": "05/20 14:02", "v": 994954}, {"t": "05/20 17:16", "v": 989986}];
+const raw = [{"t": "05/20 14:02", "v": 994954}, {"t": "05/20 17:16", "v": 989986}, {"t": "05/21 07:58", "v": 985122}];
 if(raw.length > 1){
   new Chart(document.getElementById('eq'),{
     type:'line',
