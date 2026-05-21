@@ -29,8 +29,11 @@ BASE_URL = "https://api.jquants.com/v2"
 
 class JQuantsClient:
     def __init__(self, api_key: str | None = None):
+        import os
         if api_key:
             self._api_key = api_key
+        elif os.environ.get("JQUANTS_API_KEY"):
+            self._api_key = os.environ["JQUANTS_API_KEY"]
         else:
             sys.path.insert(0, str(Path(__file__).parent.parent))
             from setup_credentials import get_jquants_api_key
