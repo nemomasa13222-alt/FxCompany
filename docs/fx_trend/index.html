@@ -7,107 +7,29 @@
 <title>USDJPY 日足トレンド指標</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
 <style>
-* { box-sizing: border-box; margin: 0; padding: 0; }
-body {
-  background: #0a0a1a;
-  color: #e0e0e0;
-  font-family: 'Segoe UI', sans-serif;
-  min-height: 100vh;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  padding: 40px 20px;
-}
-.header {
-  text-align: center;
-  margin-bottom: 40px;
-}
-.header h1 {
-  font-size: 1.1rem;
-  color: #666;
-  letter-spacing: 3px;
-  text-transform: uppercase;
-  margin-bottom: 6px;
-}
-.header .sub {
-  color: #444;
-  font-size: .78rem;
-}
-.badge-wrap {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  margin-bottom: 40px;
-}
-.badge {
-  font-size: 4rem;
-  font-weight: 900;
-  letter-spacing: 8px;
-  padding: 24px 56px;
-  border-radius: 16px;
-  border: 2px solid #f1c40f;
-  color: #f1c40f;
-  background: rgba(241,196,15,0.12);
-  margin-bottom: 12px;
-}
-.badge-label {
-  color: #f1c40f;
-  font-size: .9rem;
-  letter-spacing: 1px;
-}
-.info-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
-  gap: 16px;
-  width: 100%;
-  max-width: 640px;
-  margin-bottom: 40px;
-}
-.info-item {
-  background: #111128;
-  border: 1px solid #1e1e3e;
-  border-radius: 12px;
-  padding: 18px;
-  text-align: center;
-}
-.info-label {
-  font-size: .72rem;
-  color: #555;
-  margin-bottom: 8px;
-  letter-spacing: 1px;
-}
-.info-value {
-  font-size: 1.3rem;
-  font-weight: bold;
-  color: #ccc;
-}
-.info-value.green { color: #2ecc71; }
-.info-value.red   { color: #e74c3c; }
-.chart-wrap {
-  width: 100%;
-  max-width: 640px;
-  background: #111128;
-  border: 1px solid #1e1e3e;
-  border-radius: 12px;
-  padding: 20px;
-  margin-bottom: 24px;
-}
-.chart-title {
-  font-size: .75rem;
-  color: #555;
-  letter-spacing: 2px;
-  text-transform: uppercase;
-  margin-bottom: 14px;
-}
-.footer {
-  color: #333;
-  font-size: .72rem;
-  text-align: center;
-  margin-top: 8px;
-}
-@media (max-width: 480px) {
-  .badge { font-size: 2.8rem; padding: 18px 36px; letter-spacing: 4px; }
-}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:#0a0a1a;color:#e0e0e0;font-family:'Segoe UI',sans-serif;
+     min-height:100vh;display:flex;flex-direction:column;align-items:center;padding:40px 20px}
+.header{text-align:center;margin-bottom:40px}
+.header h1{font-size:1.1rem;color:#666;letter-spacing:3px;text-transform:uppercase;margin-bottom:6px}
+.header .sub{color:#444;font-size:.78rem}
+.badge-wrap{display:flex;flex-direction:column;align-items:center;margin-bottom:40px}
+.badge{font-size:4rem;font-weight:900;letter-spacing:8px;padding:24px 56px;
+       border-radius:16px;border:2px solid #f1c40f;
+       color:#f1c40f;background:rgba(241,196,15,0.12);margin-bottom:12px}
+.badge-label{color:#f1c40f;font-size:.9rem;letter-spacing:1px}
+.info-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));
+           gap:16px;width:100%;max-width:640px;margin-bottom:40px}
+.info-item{background:#111128;border:1px solid #1e1e3e;border-radius:12px;
+           padding:18px;text-align:center}
+.info-label{font-size:.72rem;color:#555;margin-bottom:8px;letter-spacing:1px}
+.info-value{font-size:1.3rem;font-weight:bold;color:#ccc}
+.info-value.green{color:#2ecc71}.info-value.red{color:#e74c3c}
+.chart-wrap{width:100%;max-width:640px;background:#111128;border:1px solid #1e1e3e;
+            border-radius:12px;padding:20px;margin-bottom:24px}
+.chart-title{font-size:.75rem;color:#555;letter-spacing:2px;text-transform:uppercase;margin-bottom:14px}
+.footer{color:#333;font-size:.72rem;text-align:center;margin-top:8px}
+@media(max-width:480px){.badge{font-size:2.8rem;padding:18px 36px;letter-spacing:4px}}
 </style>
 </head>
 <body>
@@ -125,19 +47,19 @@ body {
 <div class="info-grid">
   <div class="info-item">
     <div class="info-label">現在値（終値）</div>
-    <div class="info-value">158.935</div>
+    <div class="info-value">158.957</div>
   </div>
   <div class="info-item">
     <div class="info-label">データ日付</div>
-    <div class="info-value" style="font-size:1.05rem">2026-05-18</div>
+    <div class="info-value" style="font-size:1.05rem">2026-05-21</div>
   </div>
   <div class="info-item">
     <div class="info-label">レンジ High</div>
-    <div class="info-value green">158.853</div>
+    <div class="info-value green">159.035</div>
   </div>
   <div class="info-item">
     <div class="info-label">レンジ Low</div>
-    <div class="info-value red">157.858</div>
+    <div class="info-value red">158.382</div>
   </div>
   
 </div>
@@ -148,40 +70,29 @@ body {
 </div>
 
 <div class="footer">
-  最終更新: 2026-05-21 12:58 &nbsp;|&nbsp;
-  FLAT=レンジ圧縮中 &nbsp; UP/DOWN=ブレイク後（次の圧縮まで維持）<br>
-  データ: Dukascopy USDJPY 1min → D1 リサンプル
+  最終更新: 2026-05-21 17:51 &nbsp;|&nbsp; データ: Yahoo Finance (JPY=X) 日足<br>
+  FLAT=レンジ圧縮中 &nbsp; UP/DOWN=ブレイク後（次の圧縮まで維持）
 </div>
 
 <script>
-const raw = [{"t": "2026-03-08", "v": 158.404}, {"t": "2026-03-09", "v": 157.879}, {"t": "2026-03-10", "v": 158.108}, {"t": "2026-03-11", "v": 159.088}, {"t": "2026-03-12", "v": 159.243}, {"t": "2026-03-13", "v": 159.742}, {"t": "2026-03-15", "v": 159.562}, {"t": "2026-03-16", "v": 159.136}, {"t": "2026-03-17", "v": 158.913}, {"t": "2026-03-18", "v": 159.815}, {"t": "2026-03-19", "v": 157.933}, {"t": "2026-03-20", "v": 159.228}, {"t": "2026-03-22", "v": 159.151}, {"t": "2026-03-23", "v": 158.486}, {"t": "2026-03-24", "v": 158.708}, {"t": "2026-03-25", "v": 159.391}, {"t": "2026-03-26", "v": 159.726}, {"t": "2026-03-27", "v": 160.291}, {"t": "2026-03-29", "v": 160.238}, {"t": "2026-03-30", "v": 159.846}, {"t": "2026-03-31", "v": 158.589}, {"t": "2026-04-01", "v": 158.715}, {"t": "2026-04-02", "v": 159.495}, {"t": "2026-04-03", "v": 159.667}, {"t": "2026-04-05", "v": 159.781}, {"t": "2026-04-06", "v": 159.696}, {"t": "2026-04-07", "v": 158.719}, {"t": "2026-04-08", "v": 158.654}, {"t": "2026-04-09", "v": 159.094}, {"t": "2026-04-10", "v": 159.272}, {"t": "2026-04-12", "v": 159.681}, {"t": "2026-04-13", "v": 159.221}, {"t": "2026-04-14", "v": 158.804}, {"t": "2026-04-15", "v": 158.818}, {"t": "2026-04-16", "v": 159.205}, {"t": "2026-04-17", "v": 158.633}, {"t": "2026-04-19", "v": 159.156}, {"t": "2026-04-20", "v": 158.852}, {"t": "2026-04-21", "v": 159.382}, {"t": "2026-04-22", "v": 159.489}, {"t": "2026-04-23", "v": 159.756}, {"t": "2026-04-24", "v": 159.37}, {"t": "2026-04-26", "v": 159.585}, {"t": "2026-04-27", "v": 159.368}, {"t": "2026-04-28", "v": 159.56}, {"t": "2026-04-29", "v": 160.202}, {"t": "2026-04-30", "v": 156.993}, {"t": "2026-05-01", "v": 157.06}, {"t": "2026-05-03", "v": 156.901}, {"t": "2026-05-04", "v": 157.217}, {"t": "2026-05-05", "v": 157.678}, {"t": "2026-05-06", "v": 156.523}, {"t": "2026-05-07", "v": 156.851}, {"t": "2026-05-08", "v": 156.698}, {"t": "2026-05-12", "v": 157.673}, {"t": "2026-05-13", "v": 157.858}, {"t": "2026-05-14", "v": 158.383}, {"t": "2026-05-15", "v": 158.744}, {"t": "2026-05-17", "v": 158.853}, {"t": "2026-05-18", "v": 158.935}];
-const borderColor = "#f1c40f";
+const raw = [{"t": "2026-02-27", "v": 155.859}, {"t": "2026-03-02", "v": 156.633}, {"t": "2026-03-03", "v": 157.257}, {"t": "2026-03-04", "v": 157.773}, {"t": "2026-03-05", "v": 156.983}, {"t": "2026-03-06", "v": 157.534}, {"t": "2026-03-09", "v": 158.427}, {"t": "2026-03-10", "v": 157.848}, {"t": "2026-03-11", "v": 158.114}, {"t": "2026-03-12", "v": 159.075}, {"t": "2026-03-13", "v": 159.206}, {"t": "2026-03-16", "v": 159.568}, {"t": "2026-03-17", "v": 159.105}, {"t": "2026-03-18", "v": 158.889}, {"t": "2026-03-19", "v": 159.795}, {"t": "2026-03-20", "v": 157.924}, {"t": "2026-03-23", "v": 159.234}, {"t": "2026-03-24", "v": 158.479}, {"t": "2026-03-25", "v": 158.718}, {"t": "2026-03-26", "v": 159.384}, {"t": "2026-03-27", "v": 159.704}, {"t": "2026-03-30", "v": 160.234}, {"t": "2026-03-31", "v": 159.841}, {"t": "2026-04-01", "v": 158.579}, {"t": "2026-04-02", "v": 158.688}, {"t": "2026-04-03", "v": 159.491}, {"t": "2026-04-06", "v": 159.78}, {"t": "2026-04-07", "v": 159.683}, {"t": "2026-04-08", "v": 158.716}, {"t": "2026-04-09", "v": 158.642}, {"t": "2026-04-10", "v": 159.112}, {"t": "2026-04-13", "v": 159.68}, {"t": "2026-04-14", "v": 159.214}, {"t": "2026-04-15", "v": 158.792}, {"t": "2026-04-16", "v": 158.809}, {"t": "2026-04-17", "v": 159.195}, {"t": "2026-04-20", "v": 159.161}, {"t": "2026-04-21", "v": 158.844}, {"t": "2026-04-22", "v": 159.373}, {"t": "2026-04-23", "v": 159.488}, {"t": "2026-04-24", "v": 159.747}, {"t": "2026-04-27", "v": 159.576}, {"t": "2026-04-28", "v": 159.357}, {"t": "2026-04-29", "v": 159.552}, {"t": "2026-04-30", "v": 160.184}, {"t": "2026-05-01", "v": 156.978}, {"t": "2026-05-04", "v": 156.846}, {"t": "2026-05-05", "v": 157.194}, {"t": "2026-05-06", "v": 157.677}, {"t": "2026-05-07", "v": 156.508}, {"t": "2026-05-08", "v": 156.829}, {"t": "2026-05-11", "v": 156.858}, {"t": "2026-05-12", "v": 157.231}, {"t": "2026-05-13", "v": 157.671}, {"t": "2026-05-14", "v": 157.851}, {"t": "2026-05-15", "v": 158.382}, {"t": "2026-05-18", "v": 158.844}, {"t": "2026-05-19", "v": 158.861}, {"t": "2026-05-20", "v": 159.035}, {"t": "2026-05-21", "v": 158.957}];
 new Chart(document.getElementById('chart'), {
   type: 'line',
   data: {
     labels: raw.map(d => d.t),
     datasets: [{
       data: raw.map(d => d.v),
-      borderColor: borderColor,
+      borderColor: "#f1c40f",
       backgroundColor: 'rgba(128,128,128,0.04)',
-      borderWidth: 1.5,
-      pointRadius: 0,
-      fill: true,
-      tension: 0.2,
+      borderWidth: 1.5, pointRadius: 0, fill: true, tension: 0.2,
     }]
   },
   options: {
     responsive: true,
-    plugins: { legend: { display: false } },
+    plugins: {legend: {display: false}},
     scales: {
-      x: {
-        ticks: { color: '#444', maxTicksLimit: 8 },
-        grid:  { color: '#1a1a2e' },
-      },
-      y: {
-        ticks: { color: '#444' },
-        grid:  { color: '#1a1a2e' },
-      },
+      x: {ticks: {color:'#444', maxTicksLimit:8}, grid: {color:'#1a1a2e'}},
+      y: {ticks: {color:'#444'}, grid: {color:'#1a1a2e'}},
     },
   },
 });
