@@ -2,8 +2,45 @@
   "capital": 983550.1419999999,
   "peak_capital": 1040544.274,
   "positions": [],
-  "pending": [],
-  "last_run": "2026-05-25",
+  "pending": [
+    {
+      "ticker": "4022.T",
+      "sector": "化学",
+      "signal_date": "2026-05-26",
+      "signal_close": 1880.0,
+      "sector_at_signal": 254.71,
+      "sector_rise_pct": 2.99,
+      "stock_rise_pct": -7.84,
+      "gap_pct": 10.83,
+      "corr": 0.601,
+      "classification": "中間株"
+    },
+    {
+      "ticker": "5302.T",
+      "sector": "ガラス･土石製品",
+      "signal_date": "2026-05-26",
+      "signal_close": 4700.0,
+      "sector_at_signal": 360.51,
+      "sector_rise_pct": 5.64,
+      "stock_rise_pct": -3.79,
+      "gap_pct": 9.43,
+      "corr": 0.762,
+      "classification": "中間株"
+    },
+    {
+      "ticker": "4044.T",
+      "sector": "化学",
+      "signal_date": "2026-05-26",
+      "signal_close": 3835.0,
+      "sector_at_signal": 254.71,
+      "sector_rise_pct": 2.99,
+      "stock_rise_pct": -3.76,
+      "gap_pct": 6.75,
+      "corr": 0.676,
+      "classification": "中間株"
+    }
+  ],
+  "last_run": "2026-05-26",
   "total_realized_pnl": -16449.858000000033,
   "trade_count": 19
 }
