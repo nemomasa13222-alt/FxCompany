@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="refresh" content="300">
+<title>FxDemo MT4 M5 ダッシュボード | USDJPY M5</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:#0f0f23;color:#e0e0e0;font-family:'Segoe UI',sans-serif;padding:20px}
+.header{text-align:center;margin-bottom:24px}
+.header h1{font-size:1.6rem;color:#fff}
+.header .sub{color:#888;font-size:.85rem;margin-top:4px}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(155px,1fr));gap:14px;margin-bottom:24px}
+.card{background:#1a1a3e;border-radius:12px;padding:18px;text-align:center}
+.card .label{font-size:.72rem;color:#888;margin-bottom:8px}
+.card .value{font-size:1.45rem;font-weight:bold}
+.pos{color:#2ecc71}.neg{color:#e74c3c}.neu{color:#f1c40f}
+.section{background:#1a1a3e;border-radius:12px;padding:20px;margin-bottom:20px}
+.section h2{font-size:.95rem;color:#aaa;margin-bottom:14px;border-bottom:1px solid #333;padding-bottom:8px}
+table{width:100%;border-collapse:collapse;font-size:.82rem}
+th{color:#888;font-weight:normal;padding:8px;text-align:left;border-bottom:1px solid #333;white-space:nowrap}
+td{padding:7px 8px;border-bottom:1px solid #1f1f3a;white-space:nowrap}
+td.long{color:#2ecc71}td.short{color:#e74c3c}
+.tbl{overflow-x:auto;-webkit-overflow-scrolling:touch}
+canvas{max-height:240px}
+.badge{display:inline-block;background:#2a2a5a;color:#7cf;font-size:.7rem;padding:2px 8px;border-radius:4px;margin-left:8px}
+.footer{text-align:center;color:#444;font-size:.75rem;margin-top:24px}
+@media(max-width:600px){.grid{grid-template-columns:repeat(2,1fr)}}
+</style>
+</head>
+<body>
+<div class="header">
+  <h1>FxDemo MT4 ダッシュボード <span class="badge">M5</span></h1>
+  <div class="sub">USDJPY M5 レンジブレイク &nbsp;|&nbsp; 最終更新: 2026-05-27 16:00</div>
+</div>
+
+<div class="grid">
+  <div class="card">
+    <div class="label">口座残高</div>
+    <div class="value pos">1,000,000<span style="font-size:.85rem">円</span></div>
+  </div>
+  <div class="card">
+    <div class="label">収益率</div>
+    <div class="value pos">+0.00<span style="font-size:.85rem">%</span></div>
+  </div>
+  <div class="card">
+    <div class="label">累積損益</div>
+    <div class="value pos">+0<span style="font-size:.85rem">円</span></div>
+  </div>
+  <div class="card">
+    <div class="label">勝率</div>
+    <div class="value neu">0.0<span style="font-size:.85rem">%</span></div>
+  </div>
+  <div class="card">
+    <div class="label">PF</div>
+    <div class="value neu">---</div>
+  </div>
+  <div class="card">
+    <div class="label">トレード数</div>
+    <div class="value neu">0<span style="font-size:.85rem">件</span></div>
+  </div>
+  <div class="card">
+    <div class="label">累計pips</div>
+    <div class="value pos">+0.0<span style="font-size:.85rem">p</span></div>
+  </div>
+  <div class="card">
+    <div class="label">最大DD</div>
+    <div class="value neg">0.0<span style="font-size:.85rem">%</span></div>
+  </div>
+</div>
+
+<div class="section">
+  <h2>資産推移</h2>
+  <canvas id="eq"></canvas>
+</div>
+
+<div class="section">
+  <h2>保有ポジション &nbsp;<span style="font-size:.8rem;color:#666">（0件 / 有効証拠金: 0円）</span></h2>
+  <div class="tbl"><table>
+    <thead>
+      <tr>
+        <th>チケット</th><th>方向</th><th>lot</th>
+        <th>エントリー</th><th>SL</th>
+        <th>含み損益</th><th>建値時刻</th>
+      </tr>
+    </thead>
+    <tbody><tr><td colspan='7' style='text-align:center;color:#555'>保有ポジションなし</td></tr></tbody>
+  </table></div>
+</div>
+
+<div class="section">
+  <h2>直近30件 トレード履歴</h2>
+  <div class="tbl"><table>
+    <thead>
+      <tr>
+        <th>決済日時</th><th>方向</th><th>lot</th>
+        <th>エントリー</th><th>決済</th>
+        <th>pips</th><th>損益</th><th>保有</th>
+      </tr>
+    </thead>
+    <tbody><tr><td colspan='8' style='text-align:center;color:#555'>まだトレードはありません</td></tr></tbody>
+  </table></div>
+</div>
+
+<div class="footer">
+  初期資金: 1,000,000円 &nbsp;|&nbsp; 戦略: USDJPY M5 レンジブレイク  bars=12 pips=10 hold=5 &nbsp;|&nbsp; XMTrading Demo<br>
+  30分ごと自動更新（push_trades_m5.py + Windowsタスクスケジューラ）<br>
+  バックテスト参考値: IS PF1.48 勝率56.1% / OOS PF1.56 勝率56.6%（2022-2025）
+</div>
+
+<script>
+const raw = [];
+if(raw.length > 1){
+  new Chart(document.getElementById('eq'),{
+    type:'line',
+    data:{
+      labels: raw.map(d=>d.t),
+      datasets:[{
+        data: raw.map(d=>d.v),
+        borderColor:'#3498db',
+        backgroundColor:'rgba(52,152,219,0.07)',
+        borderWidth:2, pointRadius:2, fill:true, tension:0.3
+      }]
+    },
+    options:{
+      responsive:true,
+      plugins:{legend:{display:false}},
+      scales:{
+        x:{ticks:{color:'#666',maxTicksLimit:12},grid:{color:'#222'}},
+        y:{ticks:{color:'#666'},grid:{color:'#222'}}
+      }
+    }
+  });
+}
+</script>
+</body>
+</html>
