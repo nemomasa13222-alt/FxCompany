@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta http-equiv="refresh" content="300">
-<title>FxDemo MT4 M5 ダッシュボード | USDJPY M5</title>
+<title>FxDemo MT5 M5 ダッシュボード | USDJPY M5</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
@@ -32,22 +32,22 @@ canvas{max-height:240px}
 </head>
 <body>
 <div class="header">
-  <h1>FxDemo MT4 ダッシュボード <span class="badge">M5</span></h1>
-  <div class="sub">USDJPY M5 レンジブレイク &nbsp;|&nbsp; 最終更新: 2026-05-28 00:00</div>
+  <h1>FxDemo MT5 ダッシュボード <span class="badge">M5</span></h1>
+  <div class="sub">USDJPY M5 レンジブレイク &nbsp;|&nbsp; 最終更新: 2026-05-28 00:30</div>
 </div>
 
 <div class="grid">
   <div class="card">
     <div class="label">口座残高</div>
-    <div class="value neg">995,040<span style="font-size:.85rem">円</span></div>
+    <div class="value pos">1,000,000<span style="font-size:.85rem">円</span></div>
   </div>
   <div class="card">
     <div class="label">収益率</div>
-    <div class="value neg">-0.50<span style="font-size:.85rem">%</span></div>
+    <div class="value pos">+0.00<span style="font-size:.85rem">%</span></div>
   </div>
   <div class="card">
     <div class="label">累積損益</div>
-    <div class="value neg">-4,960<span style="font-size:.85rem">円</span></div>
+    <div class="value pos">+0<span style="font-size:.85rem">円</span></div>
   </div>
   <div class="card">
     <div class="label">勝率</div>
@@ -59,11 +59,11 @@ canvas{max-height:240px}
   </div>
   <div class="card">
     <div class="label">トレード数</div>
-    <div class="value neu">1<span style="font-size:.85rem">件</span></div>
+    <div class="value neu">0<span style="font-size:.85rem">件</span></div>
   </div>
   <div class="card">
     <div class="label">累計pips</div>
-    <div class="value neg">-6.2<span style="font-size:.85rem">p</span></div>
+    <div class="value pos">+0.0<span style="font-size:.85rem">p</span></div>
   </div>
   <div class="card">
     <div class="label">最大DD</div>
@@ -100,19 +100,18 @@ canvas{max-height:240px}
         <th>pips</th><th>損益</th><th>保有</th>
       </tr>
     </thead>
-    <tbody><tr><td>05/27 17:00</td><td class='long'>BUY</td><td>0.8</td><td>159.43200</td><td>159.37000</td><td class='neg'>-6.2p</td><td class='neg'>-4,960円</td><td>5本</td></tr>
-</tbody>
+    <tbody><tr><td colspan='8' style='text-align:center;color:#555'>まだトレードはありません</td></tr></tbody>
   </table></div>
 </div>
 
 <div class="footer">
-  初期資金: 1,000,000円 &nbsp;|&nbsp; 戦略: USDJPY M5 レンジブレイク  bars=12 pips=10 hold=5 &nbsp;|&nbsp; XMTrading Demo<br>
+  初期資金: 1,000,000円 &nbsp;|&nbsp; 戦略: USDJPY M5 レンジブレイク  bars=12 pips=10 hold=5 &nbsp;|&nbsp; XMTrading MT5 Demo<br>
   30分ごと自動更新（push_trades_m5.py + Windowsタスクスケジューラ）<br>
   バックテスト参考値: IS PF1.48 勝率56.1% / OOS PF1.56 勝率56.6%（2022-2025）
 </div>
 
 <script>
-const raw = [{"t": "05/27 17:00", "v": 995040}];
+const raw = [];
 if(raw.length > 1){
   new Chart(document.getElementById('eq'),{
     type:'line',
