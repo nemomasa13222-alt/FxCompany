@@ -1,51 +1,46 @@
 {
-  "capital": 985428.9479999999,
+  "capital": 991466.2319999998,
   "peak_capital": 1040544.274,
-  "positions": [
-    {
-      "ticker": "5302.T",
-      "sector": "ガラス･土石製品",
-      "entry_date": "2026-05-28",
-      "entry_price": 4685.0,
-      "shares": 68,
-      "stop_price": 4614.7,
-      "sector_at_entry": 361.16,
-      "days_held": 1,
-      "signal_gap_pct": 9.61,
-      "corr": 0.756,
-      "current_price": 4755.0,
-      "unrealized_pnl": 4760
-    },
-    {
-      "ticker": "4044.T",
-      "sector": "化学",
-      "entry_date": "2026-05-28",
-      "entry_price": 3900.0,
-      "shares": 82,
-      "stop_price": 3841.5,
-      "sector_at_entry": 256.62,
-      "days_held": 1,
-      "signal_gap_pct": 6.51,
-      "corr": 0.668,
-      "current_price": 3915.0,
-      "unrealized_pnl": 1230
-    }
-  ],
+  "positions": [],
   "pending": [
     {
-      "ticker": "5351.T",
-      "sector": "ガラス･土石製品",
-      "signal_date": "2026-05-28",
-      "signal_close": 1926.0,
-      "sector_at_signal": 359.47,
-      "sector_rise_pct": 7.71,
-      "stock_rise_pct": 1.48,
-      "gap_pct": 6.24,
-      "corr": 0.675,
+      "ticker": "4005.T",
+      "sector": "化学",
+      "signal_date": "2026-05-29",
+      "signal_close": 587.1,
+      "sector_at_signal": 258.74,
+      "sector_rise_pct": 5.05,
+      "stock_rise_pct": -0.69,
+      "gap_pct": 5.75,
+      "corr": 0.668,
+      "classification": "中間株"
+    },
+    {
+      "ticker": "4041.T",
+      "sector": "化学",
+      "signal_date": "2026-05-29",
+      "signal_close": 3600.0,
+      "sector_at_signal": 258.74,
+      "sector_rise_pct": 5.05,
+      "stock_rise_pct": -0.55,
+      "gap_pct": 5.6,
+      "corr": 0.674,
+      "classification": "中間株"
+    },
+    {
+      "ticker": "3405.T",
+      "sector": "化学",
+      "signal_date": "2026-05-29",
+      "signal_close": 1609.5,
+      "sector_at_signal": 258.74,
+      "sector_rise_pct": 5.05,
+      "stock_rise_pct": 0.41,
+      "gap_pct": 4.65,
+      "corr": 0.622,
       "classification": "中間株"
     }
   ],
-  "last_run": "2026-05-28",
-  "total_realized_pnl": -14571.05200000004,
-  "trade_count": 23
+  "last_run": "2026-05-29",
+  "total_realized_pnl": -8533.76800000004,
+  "trade_count": 26
 }
