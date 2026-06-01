@@ -811,13 +811,18 @@ def print_daily_summary(
 
 # ── メイン ─────────────────────────────────────────────────────────────────────
 def main():
-    today_dt = pd.Timestamp(datetime.today().date())
+    import argparse
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--date", default=None, help="実行日を YYYY-MM-DD で指定（省略時は今日）")
+    args = parser.parse_args()
+    today_dt = pd.Timestamp(args.date) if args.date else pd.Timestamp(datetime.today().date())
+
     _log("=" * 60)
-    _log(f"デモシグナル生成 開始: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+    _log(f"デモシグナル生成 開始: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')} (対象日: {today_dt.date()})")
     _log("=" * 60)
 
-    # 週末スキップ
-    if datetime.today().weekday() >= 5:
+    # 週末スキップ（--date 指定時は today_dt で判定）
+    if today_dt.weekday() >= 5:
         _log("本日は土日のためスキップ")
         return
 
