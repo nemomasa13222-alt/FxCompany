@@ -240,6 +240,7 @@ def execute_pending(
     state: dict,
     sector_opens: dict[str, dict[str, pd.Series]],
     today: pd.Timestamp,
+    sector_stocks: dict | None = None,
 ) -> list[dict]:
     """昨日の pending を今日の寄り値で架空購入してpositionsに移す"""
     executed = []
@@ -298,7 +299,7 @@ def execute_pending(
         if open_price is None:
             # 前日終値をフォールバックとして使用（signal_close は古い可能性があるため使わない）
             prev_close = None
-            closes = sector_stocks.get(sector, {}).get(ticker)
+            closes = (sector_stocks or {}).get(sector, {}).get(ticker)
             if closes is not None:
                 c_ser = closes["Close"] if isinstance(closes, pd.DataFrame) else closes
                 avail = c_ser[c_ser.index < today]
@@ -832,6 +833,15 @@ def main():
     sector_indices, sector_stocks, sector_opens, sector_lows = load_sector_data()
     _log(f"  {len(sector_indices)}業種 読み込み完了")
 
+    # セクター指数をCSVに保存（dashboard用）
+    if sector_indices:
+        idx_df = pd.concat(sector_indices.values(), axis=1)
+        idx_df.columns = list(sector_indices.keys())
+        idx_df.index = pd.to_datetime(idx_df.index)
+        idx_df = idx_df.sort_index()
+        idx_df.to_csv(DEMO_DIR / "sector_indices.csv", encoding="utf-8-sig")
+        _log(f"  → sector_indices.csv 保存 ({len(idx_df)}日分)")
+
     # アクティブセクター判定
     active_sectors = get_active_sectors_today(sector_indices, today_dt)
     _log(f"\nアクティブセクター（TOP{N_ACTIVE_SECTORS}）: "
@@ -839,7 +849,7 @@ def main():
 
     # Step 1: pending を今日の寄り値で架空購入
     _log("\n--- Step 1: 昨日の pending を今日の寄りで架空購入 ---")
-    executed = execute_pending(state, sector_opens, today_dt)
+    executed = execute_pending(state, sector_opens, today_dt, sector_stocks)
     if not executed:
         _log("  pending なし")
 
