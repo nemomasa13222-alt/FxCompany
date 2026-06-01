@@ -13,9 +13,11 @@ from datetime import datetime
 from io import BytesIO
 import pandas as pd
 
-DEMO_DIR  = Path(__file__).parent / "results" / "demo"
-DOCS_DIR  = Path(__file__).parent.parent / "docs"
+DEMO_DIR        = Path(__file__).parent / "results" / "demo"
+DOCS_DIR        = Path(__file__).parent.parent / "docs"
+CHART_CACHE_DIR = DEMO_DIR / "chart_cache"
 DOCS_DIR.mkdir(parents=True, exist_ok=True)
+CHART_CACHE_DIR.mkdir(parents=True, exist_ok=True)
 
 STATE_FILE  = DEMO_DIR / "state.json"
 PNL_FILE    = DEMO_DIR / "pnl_history.csv"
@@ -285,7 +287,13 @@ def chart_position(ticker: str, entry_price: float, stop_price: float, entry_dat
 
 def chart_trade(ticker: str, entry_date_str: str, entry_price: float,
                 exit_date_str: str, exit_price: float, exit_reason: str) -> str:
-    """決済済みトレード: エントリー/エグジットをチャート上にマーク"""
+    """決済済みトレード: エントリー/エグジットをチャート上にマーク。
+    一度生成したチャートはchart_cache/に保存し、次回以降はyfinanceを叩かず再利用。"""
+    cache_key  = f"trade_{ticker}_{exit_date_str}".replace(".", "_")
+    cache_file = CHART_CACHE_DIR / f"{cache_key}.png"
+    if cache_file.exists():
+        return base64.b64encode(cache_file.read_bytes()).decode()
+
     try:
         import yfinance as yf
         import mplfinance as mpf
@@ -359,7 +367,13 @@ def chart_trade(ticker: str, entry_date_str: str, entry_price: float,
             color="#e2e8f0", fontsize=11, pad=10,
         )
         fig.patch.set_facecolor("#0f172a")
-        return _b64(fig)
+        b64 = _b64(fig)
+        # PNGをキャッシュ保存（次回以降はyfinanceを叩かない）
+        try:
+            cache_file.write_bytes(base64.b64decode(b64))
+        except Exception:
+            pass
+        return b64
     except Exception as e:
         print(f"  [chart_trade エラー] {ticker}: {e}")
         return ""
