@@ -184,8 +184,20 @@ def chart_divergence() -> str:
                         )
 
             ax.axhline(100, color="#475569", linewidth=0.8, linestyle=":", alpha=0.6)
+
+            # シグナル計算基点（5日前）に縦線を追加
+            if "signal_base_date" in df.columns:
+                sig_dates = df[(df["sector"] == sector)]["signal_base_date"].dropna()
+                if not sig_dates.empty:
+                    sig_date = pd.to_datetime(sig_dates.iloc[0])
+                    ax.axvline(sig_date, color="#fbbf24", linewidth=1.0,
+                               linestyle="--", alpha=0.7, zorder=1)
+                    ax.annotate("← シグナル基準", xy=(sig_date, ax.get_ylim()[0]),
+                                xytext=(4, 4), textcoords="offset points",
+                                color="#fbbf24", fontsize=7, alpha=0.8)
+
             ax.set_title(sector, fontsize=11, color="#e2e8f0", pad=8)
-            ax.set_ylabel("正規化（窓初日=100）", fontsize=8, color="#94a3b8")
+            ax.set_ylabel("正規化（シグナル基準日=100）", fontsize=8, color="#94a3b8")
             ax.tick_params(colors="#64748b", labelsize=8)
             for spine in ax.spines.values():
                 spine.set_color("#334155")
@@ -679,7 +691,7 @@ def build_html(state: dict, pnl: list, trades: list, pw_hash: str = PW_HASH) -> 
   </div>
 
   <!-- Divergence Chart -->
-  {'<div class="card mb-6 overflow-hidden"><div class="px-5 py-4 border-b border-slate-700 flex items-center gap-2"><span class="w-2 h-2 rounded-full bg-yellow-400"></span><h2 class="text-white font-semibold">セクター指数 vs 保有・候補銘柄（乖離）</h2><span class="text-slate-500 text-xs ml-2">破線=個別株、実線=セクター指数、末尾の数値は乖離</span></div><div class="p-4"><img src="data:image/png;base64,' + div_chart_b64 + '" class="w-full rounded-lg" /></div></div>' if div_chart_b64 else ''}
+  {'<div class="card mb-6 overflow-hidden"><div class="px-5 py-4 border-b border-slate-700 flex items-center gap-2"><span class="w-2 h-2 rounded-full bg-yellow-400"></span><h2 class="text-white font-semibold">セクター指数 vs 保有・候補銘柄（乖離）</h2><span class="text-slate-500 text-xs ml-2">破線=個別株、実線=セクター指数、黄縦線=シグナル基準日（5日前）、末尾の数値=基準日比の乖離（＝signal gap）</span></div><div class="p-4"><img src="data:image/png;base64,' + div_chart_b64 + '" class="w-full rounded-lg" /></div></div>' if div_chart_b64 else ''}
 
   <!-- Pending -->
   <div class="card mb-6 overflow-hidden">

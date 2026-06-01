@@ -753,6 +753,8 @@ def save_divergence_data(
     window: int = 30,
 ):
     """pending・保有ポジションの株価とセクター指数を正規化してCSV保存。
+    正規化基点 = SECTOR_LOOKBACK(5日)前。チャートはwindow日分を表示するが
+    「100」はシグナル計算の起点と一致するため乖離アノテーションがgap_pctと対応する。
     データはキャッシュ済みのものだけ使い、当日分の取得は行わない。"""
     targets: list[tuple[str, str]] = []  # (ticker, sector)
     for p in state.get("positions", []):
@@ -771,15 +773,17 @@ def save_divergence_data(
         if sector not in done_sectors and sector in sector_indices:
             idx = sector_indices[sector]
             avail = idx[idx.index <= today].tail(window)
-            if len(avail) >= 5:
-                base = float(avail.iloc[0])
+            if len(avail) > SECTOR_LOOKBACK:
+                base = float(avail.iloc[-1 - SECTOR_LOOKBACK])  # シグナル計算と同じ基点
+                signal_base_date = avail.index[-1 - SECTOR_LOOKBACK].strftime("%Y-%m-%d")
                 for dt_, val in avail.items():
                     rows.append({
-                        "date":   dt_.strftime("%Y-%m-%d"),
-                        "label":  sector,
-                        "kind":   "sector",
-                        "sector": sector,
-                        "norm":   round(float(val) / base * 100, 2),
+                        "date":             dt_.strftime("%Y-%m-%d"),
+                        "label":            sector,
+                        "kind":             "sector",
+                        "sector":           sector,
+                        "norm":             round(float(val) / base * 100, 2),
+                        "signal_base_date": signal_base_date,
                     })
             done_sectors.add(sector)
 
@@ -795,18 +799,20 @@ def save_divergence_data(
         else:
             continue
         avail = close_s[close_s.index <= today].tail(window)
-        if len(avail) < 5:
+        if len(avail) <= SECTOR_LOOKBACK:
             continue
-        base = float(avail.iloc[0])
+        base = float(avail.iloc[-1 - SECTOR_LOOKBACK])  # シグナル計算と同じ基点
         if base == 0:
             continue
+        signal_base_date = avail.index[-1 - SECTOR_LOOKBACK].strftime("%Y-%m-%d")
         for dt_, val in avail.items():
             rows.append({
-                "date":   dt_.strftime("%Y-%m-%d"),
-                "label":  ticker,
-                "kind":   "stock",
-                "sector": sector,
-                "norm":   round(float(val) / base * 100, 2),
+                "date":             dt_.strftime("%Y-%m-%d"),
+                "label":            ticker,
+                "kind":             "stock",
+                "sector":           sector,
+                "norm":             round(float(val) / base * 100, 2),
+                "signal_base_date": signal_base_date,
             })
 
     if not rows:
