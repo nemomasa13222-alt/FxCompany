@@ -42,6 +42,169 @@ def _b64(fig) -> str:
     return base64.b64encode(buf.getvalue()).decode()
 
 
+def chart_sectors(days: int = 60) -> tuple[str, list[dict]]:
+    """
+    demo_signal.py が保存した独自セクター指数（等加重）の
+    直近 days 日間の推移チャートとパフォーマンステーブルを返す。
+    Returns: (base64_png, sector_perf_list)
+    """
+    idx_file = DEMO_DIR / "sector_indices.csv"
+    if not idx_file.exists():
+        print("  [chart_sectors] sector_indices.csv が見つかりません")
+        return "", []
+
+    try:
+        import matplotlib.pyplot as plt
+        import matplotlib.dates as mdates
+        import matplotlib as mpl
+        mpl.rcParams["font.family"] = "Meiryo"
+
+        df = pd.read_csv(idx_file, index_col=0, parse_dates=True, encoding="utf-8-sig")
+        df = df.sort_index().tail(days)
+        if df.empty or len(df) < 5:
+            return "", []
+
+        COLORS = [
+            "#22d3ee", "#a78bfa", "#34d399", "#fb923c",
+            "#f472b6", "#facc15", "#60a5fa", "#f87171",
+        ]
+
+        fig, ax = plt.subplots(figsize=(13, 5))
+        fig.patch.set_facecolor("#0f172a")
+        ax.set_facecolor("#0f172a")
+
+        perf_rows: list[dict] = []
+
+        for i, name in enumerate(df.columns):
+            s = df[name].dropna()
+            if len(s) < 5:
+                continue
+            norm  = s / s.iloc[0] * 100
+            color = COLORS[i % len(COLORS)]
+            ax.plot(norm.index, norm.values, color=color, linewidth=1.8,
+                    label=name, alpha=0.9)
+
+            last  = float(s.iloc[-1])
+            ret5  = (last / float(s.iloc[-6])  - 1) * 100 if len(s) >= 6  else float("nan")
+            ret20 = (last / float(s.iloc[-21]) - 1) * 100 if len(s) >= 21 else float("nan")
+            ret60 = (last / float(s.iloc[0])   - 1) * 100
+            perf_rows.append({
+                "name": name, "ret5": ret5, "ret20": ret20, "ret60": ret60,
+                "color": color,
+            })
+
+        perf_rows.sort(key=lambda r: r["ret20"] if not pd.isna(r["ret20"]) else -999,
+                       reverse=True)
+
+        ax.axhline(100, color="#475569", linewidth=0.8, linestyle="--", alpha=0.6)
+        ax.set_ylabel("指数（初日=100）", fontsize=10, color="#94a3b8")
+        ax.set_title(f"セクター指数推移（直近{days}日・等加重合成）",
+                     fontsize=12, color="#e2e8f0", pad=10)
+        ax.tick_params(colors="#64748b")
+        for spine in ax.spines.values():
+            spine.set_color("#334155")
+        ax.grid(True, color="#1e293b", linewidth=0.6)
+        ax.legend(loc="upper left", fontsize=8, framealpha=0.2,
+                  labelcolor="#e2e8f0", facecolor="#1e293b",
+                  ncol=2, borderpad=0.5)
+        ax.xaxis.set_major_formatter(mdates.DateFormatter("%m/%d"))
+        ax.xaxis.set_major_locator(mdates.WeekdayLocator(interval=2))
+        plt.setp(ax.xaxis.get_majorticklabels(), rotation=0, ha="center")
+
+        fig.tight_layout()
+        return _b64(fig), perf_rows
+
+    except Exception as e:
+        print(f"  [chart_sectors エラー] {e}")
+        return "", []
+
+
+def chart_divergence() -> str:
+    """
+    pending・保有株とセクター指数の乖離チャート。
+    demo_signal.py が保存した divergence_data.csv を読む（ライブ取得なし）。
+    """
+    div_file = DEMO_DIR / "divergence_data.csv"
+    if not div_file.exists():
+        return ""
+    try:
+        import matplotlib.pyplot as plt
+        import matplotlib.dates as mdates
+        import matplotlib as mpl
+        mpl.rcParams["font.family"] = "Meiryo"
+
+        df = pd.read_csv(div_file, parse_dates=["date"], encoding="utf-8")
+        if df.empty:
+            return ""
+
+        sectors = df[df["kind"] == "sector"]["sector"].unique().tolist()
+        n = len(sectors)
+        if n == 0:
+            return ""
+
+        fig, axes = plt.subplots(1, n, figsize=(7 * n, 4.5), squeeze=False)
+        fig.patch.set_facecolor("#0f172a")
+
+        STOCK_COLORS = ["#facc15", "#fb923c", "#f472b6", "#a78bfa", "#34d399"]
+
+        for col, sector in enumerate(sectors):
+            ax = axes[0][col]
+            ax.set_facecolor("#0f172a")
+
+            sec = df[(df["sector"] == sector) & (df["kind"] == "sector")].sort_values("date")
+            stocks = df[(df["sector"] == sector) & (df["kind"] == "stock")]
+            tickers = stocks["label"].unique().tolist()
+
+            if sec.empty:
+                continue
+
+            # セクター指数（白・太線）
+            ax.plot(sec["date"], sec["norm"], color="#e2e8f0", linewidth=2.5,
+                    label=sector, zorder=3)
+
+            # 個別株（色付き細線）
+            for i, ticker in enumerate(tickers):
+                s = stocks[stocks["label"] == ticker].sort_values("date")
+                color = STOCK_COLORS[i % len(STOCK_COLORS)]
+                ax.plot(s["date"], s["norm"], color=color, linewidth=1.6,
+                        label=ticker, linestyle="--", zorder=2, alpha=0.9)
+
+                # 末尾の乖離をアノテーション
+                if not s.empty and not sec.empty:
+                    last_date = s["date"].iloc[-1]
+                    sec_match = sec[sec["date"] == last_date]
+                    if not sec_match.empty:
+                        gap = float(s["norm"].iloc[-1]) - float(sec_match["norm"].iloc[-1])
+                        clr = "#f87171" if gap < 0 else "#22c55e"
+                        ax.annotate(
+                            f"{gap:+.1f}%",
+                            xy=(last_date, float(s["norm"].iloc[-1])),
+                            xytext=(6, 0), textcoords="offset points",
+                            color=clr, fontsize=8, va="center",
+                        )
+
+            ax.axhline(100, color="#475569", linewidth=0.8, linestyle=":", alpha=0.6)
+            ax.set_title(sector, fontsize=11, color="#e2e8f0", pad=8)
+            ax.set_ylabel("正規化（窓初日=100）", fontsize=8, color="#94a3b8")
+            ax.tick_params(colors="#64748b", labelsize=8)
+            for spine in ax.spines.values():
+                spine.set_color("#334155")
+            ax.grid(True, color="#1e293b", linewidth=0.5)
+            ax.legend(loc="upper left", fontsize=7.5, framealpha=0.2,
+                      labelcolor="#e2e8f0", facecolor="#1e293b", borderpad=0.4)
+            ax.xaxis.set_major_formatter(mdates.DateFormatter("%m/%d"))
+            ax.xaxis.set_major_locator(mdates.WeekdayLocator(interval=2))
+            plt.setp(ax.xaxis.get_majorticklabels(), rotation=0, ha="center")
+
+        fig.suptitle("セクター指数 vs 保有・候補銘柄（乖離チャート）",
+                     color="#cbd5e1", fontsize=12, y=1.02)
+        fig.tight_layout()
+        return _b64(fig)
+    except Exception as e:
+        print(f"  [chart_divergence エラー] {e}")
+        return ""
+
+
 def _mpf_style():
     import mplfinance as mpf
     return mpf.make_mpf_style(
@@ -210,6 +373,16 @@ def build_html(state: dict, pnl: list, trades: list, pw_hash: str = PW_HASH) -> 
     ret_color = "#22c55e" if ret_pct >= 0 else "#ef4444"
     ret_sign  = "+" if ret_pct >= 0 else ""
 
+    # ── セクター指数チャート ───────────────────────────────────────────────────
+    print("  セクター指数チャート生成中...")
+    sector_chart_b64, sector_perf = chart_sectors(days=60)
+    print(f"    → {len(sector_perf)} セクター取得")
+
+    # ── 乖離チャート ─────────────────────────────────────────────────────────
+    print("  乖離チャート生成中...")
+    div_chart_b64 = chart_divergence()
+    print(f"    → {'OK' if div_chart_b64 else 'データなし'}")
+
     # ── チャートデータ生成 ─────────────────────────────────────────────────────
     charts: dict[str, str] = {}
 
@@ -315,6 +488,28 @@ def build_html(state: dict, pnl: list, trades: list, pw_hash: str = PW_HASH) -> 
           <td class="px-4 py-3 text-slate-400">{reason}</td>
           <td class="px-4 py-3 text-right text-slate-400">{t.get('days_held',0)}日</td>
         </tr>"""
+
+    # ── セクターパフォーマンステーブル行 ─────────────────────────────────────
+    sector_rows = ""
+    for r in sector_perf:
+        def _col(v):
+            if pd.isna(v): return "#64748b"
+            return "#22c55e" if v >= 0 else "#ef4444"
+        def _fmt(v):
+            if pd.isna(v): return "—"
+            return f"{v:+.1f}%"
+        rank_icon = "▲" if r["ret20"] > 2 else ("▼" if r["ret20"] < -2 else "—")
+        rank_col  = "#22c55e" if r["ret20"] > 2 else ("#ef4444" if r["ret20"] < -2 else "#64748b")
+        sector_rows += f"""
+        <tr class="hover:bg-slate-750 transition-colors">
+          <td class="px-4 py-2.5 font-semibold" style="color:{r['color']}">{r['name']}</td>
+          <td class="px-4 py-2.5 text-right font-bold" style="color:{_col(r['ret5'])}">{_fmt(r['ret5'])}</td>
+          <td class="px-4 py-2.5 text-right font-bold" style="color:{_col(r['ret20'])}">{_fmt(r['ret20'])}</td>
+          <td class="px-4 py-2.5 text-right" style="color:{_col(r['ret60'])}">{_fmt(r['ret60'])}</td>
+          <td class="px-4 py-2.5 text-center font-bold" style="color:{rank_col}">{rank_icon}</td>
+        </tr>"""
+
+    no_sector_rows = '<tr><td colspan="5" class="px-4 py-6 text-center text-slate-500">データなし</td></tr>' if not sector_rows else sector_rows
 
     no_positions = f'<tr><td colspan="9" class="px-4 py-6 text-center text-slate-500">保有なし</td></tr>' if not pos_rows else pos_rows
     no_pending   = f'<tr><td colspan="6" class="px-4 py-6 text-center text-slate-500">なし</td></tr>' if not pend_rows else pend_rows
@@ -429,6 +624,33 @@ def build_html(state: dict, pnl: list, trades: list, pw_hash: str = PW_HASH) -> 
     </div>
   </div>
 
+  <!-- Sector Index -->
+  <div class="card mb-6 overflow-hidden">
+    <div class="px-5 py-4 border-b border-slate-700 flex items-center gap-2">
+      <span class="w-2 h-2 rounded-full bg-violet-400"></span>
+      <h2 class="text-white font-semibold">セクター指数推移（等加重合成・直近60日）</h2>
+    </div>
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-0">
+      <div class="md:col-span-2 p-4">
+        {'<img src="data:image/png;base64,' + sector_chart_b64 + '" class="w-full rounded-lg" />' if sector_chart_b64 else '<div class="text-slate-500 text-sm p-4">チャートなし（demo_signal.py を実行すると表示されます）</div>'}
+      </div>
+      <div class="p-4 border-l border-slate-700">
+        <table class="w-full text-sm">
+          <thead>
+            <tr class="text-slate-400 text-xs border-b border-slate-700">
+              <th class="pb-2 text-left">業種</th>
+              <th class="pb-2 text-right">5日</th>
+              <th class="pb-2 text-right">20日</th>
+              <th class="pb-2 text-right">60日</th>
+              <th class="pb-2 text-center">↑↓</th>
+            </tr>
+          </thead>
+          <tbody>{no_sector_rows}</tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
   <!-- Positions -->
   <div class="card mb-6 overflow-hidden">
     <div class="px-5 py-4 border-b border-slate-700 flex items-center gap-2">
@@ -455,6 +677,9 @@ def build_html(state: dict, pnl: list, trades: list, pw_hash: str = PW_HASH) -> 
       </table>
     </div>
   </div>
+
+  <!-- Divergence Chart -->
+  {'<div class="card mb-6 overflow-hidden"><div class="px-5 py-4 border-b border-slate-700 flex items-center gap-2"><span class="w-2 h-2 rounded-full bg-yellow-400"></span><h2 class="text-white font-semibold">セクター指数 vs 保有・候補銘柄（乖離）</h2><span class="text-slate-500 text-xs ml-2">破線=個別株、実線=セクター指数、末尾の数値は乖離</span></div><div class="p-4"><img src="data:image/png;base64,' + div_chart_b64 + '" class="w-full rounded-lg" /></div></div>' if div_chart_b64 else ''}
 
   <!-- Pending -->
   <div class="card mb-6 overflow-hidden">

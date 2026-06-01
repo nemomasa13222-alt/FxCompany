@@ -744,6 +744,79 @@ def save_pnl_snapshot(
     return total_equity, ret_pct, dd_pct, unrealized
 
 
+# ── 乖離データ保存（ダッシュボード用） ────────────────────────────────────────
+def save_divergence_data(
+    state: dict,
+    sector_indices: dict,
+    sector_stocks: dict,
+    today: pd.Timestamp,
+    window: int = 30,
+):
+    """pending・保有ポジションの株価とセクター指数を正規化してCSV保存。
+    データはキャッシュ済みのものだけ使い、当日分の取得は行わない。"""
+    targets: list[tuple[str, str]] = []  # (ticker, sector)
+    for p in state.get("positions", []):
+        targets.append((p["ticker"], p["sector"]))
+    for p in state.get("pending", []):
+        targets.append((p["ticker"], p["sector"]))
+
+    if not targets:
+        return
+
+    rows: list[dict] = []
+    done_sectors: set[str] = set()
+
+    for ticker, sector in targets:
+        # セクター指数（sector ごとに1回だけ）
+        if sector not in done_sectors and sector in sector_indices:
+            idx = sector_indices[sector]
+            avail = idx[idx.index <= today].tail(window)
+            if len(avail) >= 5:
+                base = float(avail.iloc[0])
+                for dt_, val in avail.items():
+                    rows.append({
+                        "date":   dt_.strftime("%Y-%m-%d"),
+                        "label":  sector,
+                        "kind":   "sector",
+                        "sector": sector,
+                        "norm":   round(float(val) / base * 100, 2),
+                    })
+            done_sectors.add(sector)
+
+        # 個別株
+        raw = sector_stocks.get(sector, {}).get(ticker)
+        if raw is None:
+            continue
+        # sector_stocks の値は DataFrame(Close列) or Series のどちらか
+        if hasattr(raw, "columns"):
+            close_s = raw["Close"]
+        elif hasattr(raw, "iloc"):
+            close_s = raw
+        else:
+            continue
+        avail = close_s[close_s.index <= today].tail(window)
+        if len(avail) < 5:
+            continue
+        base = float(avail.iloc[0])
+        if base == 0:
+            continue
+        for dt_, val in avail.items():
+            rows.append({
+                "date":   dt_.strftime("%Y-%m-%d"),
+                "label":  ticker,
+                "kind":   "stock",
+                "sector": sector,
+                "norm":   round(float(val) / base * 100, 2),
+            })
+
+    if not rows:
+        return
+
+    out = DEMO_DIR / "divergence_data.csv"
+    pd.DataFrame(rows).to_csv(out, index=False, encoding="utf-8")
+    _log(f"  [乖離データ] {out.name} 保存 ({len(rows)}行)")
+
+
 # ── 日次サマリー表示 ──────────────────────────────────────────────────────────
 def print_daily_summary(
     state: dict,
@@ -813,7 +886,8 @@ def print_daily_summary(
 def main():
     import argparse
     parser = argparse.ArgumentParser()
-    parser.add_argument("--date", default=None, help="実行日を YYYY-MM-DD で指定（省略時は今日）")
+    parser.add_argument("--date",  default=None, help="実行日を YYYY-MM-DD で指定（省略時は今日）")
+    parser.add_argument("--force", action="store_true", help="同日二重実行ガードをスキップ")
     args = parser.parse_args()
     today_dt = pd.Timestamp(args.date) if args.date else pd.Timestamp(datetime.today().date())
 
@@ -829,7 +903,7 @@ def main():
     state = _load_state()
 
     # 同日二重実行ガード
-    if state.get("last_run") == today_dt.strftime("%Y-%m-%d"):
+    if state.get("last_run") == today_dt.strftime("%Y-%m-%d") and not args.force:
         _log("本日は既に実行済みです（last_run が同日）。再実行する場合は state.json の last_run を変更してください。")
         return
 
@@ -882,6 +956,9 @@ def main():
     state.pop("_rotated_trades_today", None)
     state["last_run"] = today_dt.strftime("%Y-%m-%d")
     _save_state(state)
+
+    # 乖離データ保存（ダッシュボード用）
+    save_divergence_data(state, sector_indices, sector_stocks, today_dt)
 
     # 日次サマリー
     print_daily_summary(
