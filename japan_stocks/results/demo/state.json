@@ -1,49 +1,49 @@
 {
-  "capital": 969918.6971999999,
+  "capital": 959081.1072,
   "peak_capital": 1040544.274,
   "positions": [
     {
-      "ticker": "4004.T",
-      "sector": "化学",
-      "entry_date": "2026-06-04",
-      "entry_price": 18480.0,
-      "shares": 17,
-      "stop_price": 18202.8,
-      "sector_at_entry": 262.58,
+      "ticker": "3110.T",
+      "sector": "ガラス･土石製品",
+      "entry_date": "2026-06-05",
+      "entry_price": 19640.0,
+      "shares": 16,
+      "stop_price": 19345.4,
+      "sector_at_entry": 368.68,
       "days_held": 1,
-      "signal_gap_pct": 8.85,
-      "corr": 0.64,
-      "current_price": 18700.0,
-      "unrealized_pnl": 3740
+      "signal_gap_pct": 9.13,
+      "corr": 0.617,
+      "current_price": 20770.0,
+      "unrealized_pnl": 18080
     }
   ],
   "pending": [
     {
-      "ticker": "3110.T",
-      "sector": "ガラス･土石製品",
-      "signal_date": "2026-06-04",
-      "signal_close": 21770.0,
-      "sector_at_signal": 368.68,
-      "sector_rise_pct": 2.56,
-      "stock_rise_pct": -6.57,
-      "gap_pct": 9.13,
-      "corr": 0.617,
+      "ticker": "4008.T",
+      "sector": "化学",
+      "signal_date": "2026-06-05",
+      "signal_close": 1273.0,
+      "sector_at_signal": 271.15,
+      "sector_rise_pct": 4.8,
+      "stock_rise_pct": -3.78,
+      "gap_pct": 8.58,
+      "corr": 0.725,
       "classification": "中間株"
     },
     {
-      "ticker": "4005.T",
+      "ticker": "4004.T",
       "sector": "化学",
-      "signal_date": "2026-06-04",
-      "signal_close": 586.8,
-      "sector_at_signal": 270.89,
-      "sector_rise_pct": 5.56,
-      "stock_rise_pct": -0.66,
-      "gap_pct": 6.22,
-      "corr": 0.673,
+      "signal_date": "2026-06-05",
+      "signal_close": 17860.0,
+      "sector_at_signal": 271.15,
+      "sector_rise_pct": 4.8,
+      "stock_rise_pct": -3.46,
+      "gap_pct": 8.26,
+      "corr": 0.641,
       "classification": "中間株"
     }
   ],
-  "last_run": "2026-06-04",
-  "total_realized_pnl": -30081.30280000004,
-  "trade_count": 34
+  "last_run": "2026-06-05",
+  "total_realized_pnl": -40918.89280000004,
+  "trade_count": 36
 }
