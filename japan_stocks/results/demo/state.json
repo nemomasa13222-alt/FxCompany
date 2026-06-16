@@ -2,8 +2,45 @@
   "capital": 949077.6372,
   "peak_capital": 1040544.274,
   "positions": [],
-  "pending": [],
-  "last_run": "2026-06-15",
+  "pending": [
+    {
+      "ticker": "4027.T",
+      "sector": "化学",
+      "signal_date": "2026-06-16",
+      "signal_close": 2269.0,
+      "sector_at_signal": 268.94,
+      "sector_rise_pct": 3.83,
+      "stock_rise_pct": -1.65,
+      "gap_pct": 5.48,
+      "corr": 0.619,
+      "classification": "中間株"
+    },
+    {
+      "ticker": "4047.T",
+      "sector": "化学",
+      "signal_date": "2026-06-16",
+      "signal_close": 3885.0,
+      "sector_at_signal": 268.94,
+      "sector_rise_pct": 3.83,
+      "stock_rise_pct": -0.51,
+      "gap_pct": 4.35,
+      "corr": 0.619,
+      "classification": "中間株"
+    },
+    {
+      "ticker": "5192.T",
+      "sector": "ゴム製品",
+      "signal_date": "2026-06-16",
+      "signal_close": 3970.0,
+      "sector_at_signal": 399.08,
+      "sector_rise_pct": 5.38,
+      "stock_rise_pct": 1.4,
+      "gap_pct": 3.97,
+      "corr": 0.71,
+      "classification": "中間株"
+    }
+  ],
+  "last_run": "2026-06-16",
   "total_realized_pnl": -50922.3628,
   "trade_count": 39
 }
