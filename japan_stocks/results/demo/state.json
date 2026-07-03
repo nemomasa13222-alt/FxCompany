@@ -2,8 +2,21 @@
   "capital": 888772.2932,
   "peak_capital": 1040544.274,
   "positions": [],
-  "pending": [],
-  "last_run": "2026-07-02",
+  "pending": [
+    {
+      "ticker": "8725.T",
+      "sector": "保険業",
+      "signal_date": "2026-07-03",
+      "signal_close": 4395.0,
+      "sector_at_signal": 275.21,
+      "sector_rise_pct": 6.61,
+      "stock_rise_pct": 3.36,
+      "gap_pct": 3.25,
+      "corr": 0.763,
+      "classification": "中間株"
+    }
+  ],
+  "last_run": "2026-07-03",
   "total_realized_pnl": -111227.70679999997,
   "trade_count": 54
 }
