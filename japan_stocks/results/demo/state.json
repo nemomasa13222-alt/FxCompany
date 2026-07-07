@@ -1,49 +1,46 @@
 {
-  "capital": 888772.2932,
+  "capital": 883857.1492,
   "peak_capital": 1040544.274,
-  "positions": [
-    {
-      "ticker": "8725.T",
-      "sector": "保険業",
-      "entry_date": "2026-07-06",
-      "entry_price": 4465.0,
-      "shares": 66,
-      "stop_price": 4398.0,
-      "sector_at_entry": 275.21,
-      "days_held": 1,
-      "signal_gap_pct": 3.25,
-      "corr": 0.763,
-      "current_price": 4454.0,
-      "unrealized_pnl": -726
-    }
-  ],
+  "positions": [],
   "pending": [
     {
       "ticker": "5471.T",
       "sector": "鉄鋼",
-      "signal_date": "2026-07-06",
-      "signal_close": 2830.0,
-      "sector_at_signal": 354.51,
-      "sector_rise_pct": 2.72,
-      "stock_rise_pct": -2.85,
-      "gap_pct": 5.57,
+      "signal_date": "2026-07-07",
+      "signal_close": 2774.0,
+      "sector_at_signal": 357.45,
+      "sector_rise_pct": 2.97,
+      "stock_rise_pct": -1.21,
+      "gap_pct": 4.18,
       "corr": 0.765,
       "classification": "中間株"
     },
     {
-      "ticker": "5563.T",
+      "ticker": "5632.T",
       "sector": "鉄鋼",
-      "signal_date": "2026-07-06",
-      "signal_close": 444.0,
-      "sector_at_signal": 354.51,
-      "sector_rise_pct": 2.72,
-      "stock_rise_pct": -2.52,
-      "gap_pct": 5.25,
-      "corr": 0.729,
+      "signal_date": "2026-07-07",
+      "signal_close": 2188.0,
+      "sector_at_signal": 357.45,
+      "sector_rise_pct": 2.97,
+      "stock_rise_pct": -0.91,
+      "gap_pct": 3.88,
+      "corr": 0.755,
+      "classification": "中間株"
+    },
+    {
+      "ticker": "5121.T",
+      "sector": "ゴム製品",
+      "signal_date": "2026-07-07",
+      "signal_close": 2580.0,
+      "sector_at_signal": 399.79,
+      "sector_rise_pct": 3.1,
+      "stock_rise_pct": -0.77,
+      "gap_pct": 3.87,
+      "corr": 0.665,
       "classification": "中間株"
     }
   ],
-  "last_run": "2026-07-06",
-  "total_realized_pnl": -111227.70679999997,
-  "trade_count": 54
+  "last_run": "2026-07-07",
+  "total_realized_pnl": -116142.8508,
+  "trade_count": 57
 }
