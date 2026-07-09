@@ -1,49 +1,46 @@
 {
-  "capital": 882684.1492,
+  "capital": 874605.5632,
   "peak_capital": 1040544.274,
-  "positions": [
+  "positions": [],
+  "pending": [
     {
       "ticker": "5471.T",
       "sector": "鉄鋼",
-      "entry_date": "2026-07-08",
-      "entry_price": 2624.0,
-      "shares": 112,
-      "stop_price": 2584.6,
-      "sector_at_entry": 357.45,
-      "days_held": 1,
-      "signal_gap_pct": 4.18,
-      "corr": 0.765,
-      "current_price": 2624.0,
-      "unrealized_pnl": 0
-    }
-  ],
-  "pending": [
-    {
-      "ticker": "2975.T",
-      "sector": "不動産業",
-      "signal_date": "2026-07-08",
-      "signal_close": 1516.0,
-      "sector_at_signal": 249.38,
-      "sector_rise_pct": 2.44,
-      "stock_rise_pct": -5.78,
-      "gap_pct": 8.22,
-      "corr": 0.668,
+      "signal_date": "2026-07-09",
+      "signal_close": 2571.0,
+      "sector_at_signal": 351.44,
+      "sector_rise_pct": 2.09,
+      "stock_rise_pct": -6.8,
+      "gap_pct": 8.89,
+      "corr": 0.758,
       "classification": "中間株"
     },
     {
-      "ticker": "5192.T",
-      "sector": "ゴム製品",
-      "signal_date": "2026-07-08",
-      "signal_close": 3950.0,
-      "sector_at_signal": 399.65,
-      "sector_rise_pct": 4.14,
-      "stock_rise_pct": 0.0,
-      "gap_pct": 4.14,
-      "corr": 0.702,
+      "ticker": "5659.T",
+      "sector": "鉄鋼",
+      "signal_date": "2026-07-09",
+      "signal_close": 1415.0,
+      "sector_at_signal": 351.44,
+      "sector_rise_pct": 2.09,
+      "stock_rise_pct": -2.41,
+      "gap_pct": 4.51,
+      "corr": 0.633,
+      "classification": "中間株"
+    },
+    {
+      "ticker": "8795.T",
+      "sector": "保険業",
+      "signal_date": "2026-07-09",
+      "signal_close": 4934.0,
+      "sector_at_signal": 282.59,
+      "sector_rise_pct": 5.97,
+      "stock_rise_pct": 2.47,
+      "gap_pct": 3.49,
+      "corr": 0.73,
       "classification": "中間株"
     }
   ],
-  "last_run": "2026-07-08",
-  "total_realized_pnl": -117315.8508,
-  "trade_count": 59
+  "last_run": "2026-07-09",
+  "total_realized_pnl": -125394.43680000001,
+  "trade_count": 62
 }
