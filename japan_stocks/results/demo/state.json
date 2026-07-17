@@ -1,34 +1,49 @@
 {
-  "capital": 879607.9572,
+  "capital": 879023.7372,
   "peak_capital": 1040544.274,
-  "positions": [],
-  "pending": [
+  "positions": [
     {
       "ticker": "3156.T",
       "sector": "卸売業",
-      "signal_date": "2026-07-16",
-      "signal_close": 3715.0,
-      "sector_at_signal": 293.7,
-      "sector_rise_pct": 2.56,
-      "stock_rise_pct": -1.59,
-      "gap_pct": 4.15,
+      "entry_date": "2026-07-17",
+      "entry_price": 3590.0,
+      "shares": 81,
+      "stop_price": 3536.2,
+      "sector_at_entry": 293.7,
+      "days_held": 1,
+      "signal_gap_pct": 4.15,
       "corr": 0.606,
+      "current_price": 3640.0,
+      "unrealized_pnl": 4050
+    }
+  ],
+  "pending": [
+    {
+      "ticker": "5471.T",
+      "sector": "鉄鋼",
+      "signal_date": "2026-07-17",
+      "signal_close": 2440.5,
+      "sector_at_signal": 356.25,
+      "sector_rise_pct": 2.05,
+      "stock_rise_pct": -4.29,
+      "gap_pct": 6.34,
+      "corr": 0.758,
       "classification": "中間株"
     },
     {
-      "ticker": "9119.T",
-      "sector": "海運業",
-      "signal_date": "2026-07-16",
-      "signal_close": 1520.0,
-      "sector_at_signal": 983.15,
-      "sector_rise_pct": 3.37,
-      "stock_rise_pct": -0.13,
-      "gap_pct": 3.51,
-      "corr": 0.724,
+      "ticker": "2127.T",
+      "sector": "サービス業",
+      "signal_date": "2026-07-17",
+      "signal_close": 673.1,
+      "sector_at_signal": 159.5,
+      "sector_rise_pct": 2.52,
+      "stock_rise_pct": -0.5,
+      "gap_pct": 3.02,
+      "corr": 0.629,
       "classification": "中間株"
     }
   ],
-  "last_run": "2026-07-16",
-  "total_realized_pnl": -120392.04279999998,
-  "trade_count": 65
+  "last_run": "2026-07-17",
+  "total_realized_pnl": -120976.26279999998,
+  "trade_count": 66
 }
