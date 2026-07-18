@@ -1,8 +1,8 @@
 ﻿name: デモ運用 日次自動実行
 
 on:
-  schedule:
-    - cron: '0 11 * * 1-5'  # 平日 20:00 JST (= 11:00 UTC) J-Quants配信後
+  # schedule:                 # 計算ミス発覚のため一時停止 2026-07-18
+  #   - cron: '0 11 * * 1-5'  # 平日 20:00 JST (= 11:00 UTC) J-Quants配信後
   workflow_dispatch:          # GitHub画面から手動実行も可能
 
 permissions:
