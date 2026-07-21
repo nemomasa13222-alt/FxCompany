@@ -1,5 +1,5 @@
 {
-  "capital": 869133.1351999999,
+  "capital": 864229.9792,
   "peak_capital": 1040544.274,
   "positions": [
     {
@@ -10,7 +10,7 @@
       "shares": 435,
       "stop_price": 662.1,
       "sector_at_entry": 159.5,
-      "days_held": 1,
+      "days_held": 2,
       "signal_gap_pct": 3.02,
       "corr": 0.629,
       "current_price": 672.2,
@@ -21,7 +21,7 @@
     {
       "ticker": "9119.T",
       "sector": "海運業",
-      "signal_date": "2026-07-20",
+      "signal_date": "2026-07-21",
       "signal_close": 1466.0,
       "sector_at_signal": 979.94,
       "sector_rise_pct": 5.11,
@@ -31,7 +31,7 @@
       "classification": "中間株"
     }
   ],
-  "last_run": "2026-07-20",
-  "total_realized_pnl": -130866.86480000001,
-  "trade_count": 68
+  "last_run": "2026-07-21",
+  "total_realized_pnl": -135770.0208,
+  "trade_count": 69
 }
