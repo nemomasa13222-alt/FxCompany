@@ -44,8 +44,9 @@ input[type=range]{flex:1;min-width:150px;min-height:32px}
   .controls{gap:8px}
   #playBtn, #resetBtn{flex:1 1 45%}
   #zoomTitle, #scaleLockBtn{flex:1 1 100%;text-align:center}
+  #zoomSlider{flex:1 1 auto;min-width:100px}
   select{flex:1 1 100%;order:3}
-  input[type=range]{flex:1 1 100%;order:4}
+  #seekBar{flex:1 1 100%;order:4}
   .progress-label{flex:1 1 100%;order:5;text-align:center}
   .stats{gap:6px}
   .stat{flex:1 1 45%;padding:8px}
@@ -73,6 +74,13 @@ input[type=range]{flex:1;min-width:150px;min-height:32px}
     <div class="sub" id="rangeLabel"></div>
     <div id="chart"></div>
     <div class="controls">
+      <span class="axislabel" id="zoomTitle">縦軸ズーム</span>
+      <span class="axislabel">広い</span>
+      <input type="range" id="zoomSlider" min="2" max="40" value="10">
+      <span class="axislabel">狭い</span>
+      <button id="scaleLockBtn" class="secondary" type="button">🔓 自動追従</button>
+    </div>
+    <div class="controls">
       <button id="playBtn">▶ 再生</button>
       <button id="resetBtn" class="secondary">⏮ 最初から</button>
       <select id="speedSel">
@@ -86,13 +94,6 @@ input[type=range]{flex:1;min-width:150px;min-height:32px}
       </select>
       <input type="range" id="seekBar" min="0" max="1000" value="0">
       <span class="progress-label" id="progressLabel">0 / 0</span>
-    </div>
-    <div class="controls">
-      <span class="axislabel" id="zoomTitle">縦軸ズーム</span>
-      <span class="axislabel">広い</span>
-      <input type="range" id="zoomSlider" min="2" max="40" value="10">
-      <span class="axislabel">狭い</span>
-      <button id="scaleLockBtn" class="secondary" type="button">🔓 自動追従</button>
     </div>
     <div class="stats">
       <div class="stat"><div class="label">現在時刻(JST)</div><div class="value" id="curTime">-</div></div>
