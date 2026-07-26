@@ -131,8 +131,7 @@ input[type=range]{{flex:1;min-width:150px;min-height:32px}}
   #chart{{height:340px}}
   .controls{{gap:8px}}
   #playBtn, #resetBtn{{flex:1 1 45%}}
-  #zoomInBtn, #zoomOutBtn, #scaleLockBtn{{flex:1 1 30%;padding:10px 6px;font-size:13px}}
-  .axislabel{{flex:1 1 100%}}
+  #zoomTitle, #scaleLockBtn{{flex:1 1 100%;text-align:center}}
   select{{flex:1 1 100%;order:3}}
   input[type=range]{{flex:1 1 100%;order:4}}
   .progress-label{{flex:1 1 100%;order:5;text-align:center}}
@@ -164,11 +163,11 @@ input[type=range]{{flex:1;min-width:150px;min-height:32px}}
       <span class="progress-label" id="progressLabel">0 / {n_ticks:,}</span>
     </div>
     <div class="controls">
-      <span class="axislabel">縦軸:</span>
-      <button id="zoomInBtn" class="secondary" type="button">＋ 拡大</button>
-      <button id="zoomOutBtn" class="secondary" type="button">－ 縮小</button>
+      <span class="axislabel" id="zoomTitle">縦軸ズーム</span>
+      <span class="axislabel">広い</span>
+      <input type="range" id="zoomSlider" min="2" max="40" value="10">
+      <span class="axislabel">狭い</span>
       <button id="scaleLockBtn" class="secondary" type="button">🔓 自動追従</button>
-      <span class="progress-label" id="axisHint">価格軸(右端の数字)を上下にドラッグでも調整できます</span>
     </div>
     <div class="stats">
       <div class="stat"><div class="label">現在時刻</div><div class="value" id="curTime">-</div></div>
@@ -319,13 +318,8 @@ function applyPriceMargin() {{
   chart.priceScale('right').applyOptions({{ scaleMargins: {{ top: priceMargin, bottom: priceMargin }} }});
 }}
 
-document.getElementById('zoomInBtn').addEventListener('click', () => {{
-  priceMargin = Math.max(0.02, priceMargin - 0.04);
-  applyPriceMargin();
-}});
-
-document.getElementById('zoomOutBtn').addEventListener('click', () => {{
-  priceMargin = Math.min(0.4, priceMargin + 0.04);
+document.getElementById('zoomSlider').addEventListener('input', (e) => {{
+  priceMargin = Number(e.target.value) / 100;
   applyPriceMargin();
 }});
 
