@@ -72,8 +72,10 @@ def build_payload(df: pd.DataFrame, tz_offset_hours: int):
     bar_sizes = pd.Series(bar_id).groupby(bar_id).size().to_numpy()
     bar_start_tick = bar_sizes.cumsum() - bar_sizes  # 各バーの最初のtickインデックス
 
+    # df.indexの内部単位はus/ns等ソースにより変わりうるため、as_unit("ms")で明示的にms epochへ揃える
     shift = tz_offset_hours * 3600
-    bar_t = (bar_times.view("int64") // 10**9 + shift).astype("int64")
+    bar_ms = bar_times.as_unit("ms").view("int64")
+    bar_t = (bar_ms // 1000 + shift).astype("int64")
 
     bars = [
         {"t": int(bar_t[i]), "o": round(float(ohlc["o"].iloc[i]), 3),
@@ -82,7 +84,7 @@ def build_payload(df: pd.DataFrame, tz_offset_hours: int):
         for i in range(len(bar_t))
     ]
 
-    tick_t = (df.index.view("int64") // 10**6 + shift * 1000).astype("int64")  # ms
+    tick_t = (df.index.as_unit("ms").view("int64") + shift * 1000).astype("int64")  # ms
     ticks = [
         {"t": int(tick_t[i]), "b": round(float(df["bid"].iloc[i]), 3),
          "a": round(float(df["ask"].iloc[i]), 3), "m": round(float(df["mid"].iloc[i]), 3),
