@@ -121,6 +121,7 @@ input[type=range]{{flex:1;min-width:150px;min-height:32px}}
 .stat .label{{font-size:11px;color:#64748b}}
 .stat .value{{font-size:17px;font-weight:600;margin-top:2px}}
 .progress-label{{font-size:12px;color:#64748b;min-width:150px;text-align:right}}
+.axislabel{{font-size:13px;color:#475569}}
 
 @media (max-width: 640px) {{
   .wrap{{padding:10px}}
@@ -130,6 +131,8 @@ input[type=range]{{flex:1;min-width:150px;min-height:32px}}
   #chart{{height:340px}}
   .controls{{gap:8px}}
   #playBtn, #resetBtn{{flex:1 1 45%}}
+  #zoomInBtn, #zoomOutBtn, #scaleLockBtn{{flex:1 1 30%;padding:10px 6px;font-size:13px}}
+  .axislabel{{flex:1 1 100%}}
   select{{flex:1 1 100%;order:3}}
   input[type=range]{{flex:1 1 100%;order:4}}
   .progress-label{{flex:1 1 100%;order:5;text-align:center}}
@@ -160,6 +163,13 @@ input[type=range]{{flex:1;min-width:150px;min-height:32px}}
       <input type="range" id="seekBar" min="0" max="1000" value="0">
       <span class="progress-label" id="progressLabel">0 / {n_ticks:,}</span>
     </div>
+    <div class="controls">
+      <span class="axislabel">縦軸:</span>
+      <button id="zoomInBtn" class="secondary" type="button">＋ 拡大</button>
+      <button id="zoomOutBtn" class="secondary" type="button">－ 縮小</button>
+      <button id="scaleLockBtn" class="secondary" type="button">🔓 自動追従</button>
+      <span class="progress-label" id="axisHint">価格軸(右端の数字)を上下にドラッグでも調整できます</span>
+    </div>
     <div class="stats">
       <div class="stat"><div class="label">現在時刻</div><div class="value" id="curTime">-</div></div>
       <div class="stat"><div class="label">BID</div><div class="value" id="curBid">-</div></div>
@@ -174,13 +184,22 @@ const BARS  = {bars_json};
 const TICKS = {ticks_json};
 const N = TICKS.length;
 
+let priceMargin = 0.1;
+let autoScaleOn = true;
+
 const chart = LightweightCharts.createChart(document.getElementById('chart'), {{
   autoSize: true,
   layout: {{ background: {{ color: '#ffffff' }}, textColor: '#1e293b' }},
   grid: {{ vertLines: {{ color: '#f1f5f9' }}, horzLines: {{ color: '#f1f5f9' }} }},
   timeScale: {{ timeVisible: true, secondsVisible: true, borderColor: '#e2e8f0' }},
-  rightPriceScale: {{ borderColor: '#e2e8f0' }},
+  rightPriceScale: {{ borderColor: '#e2e8f0', autoScale: true, scaleMargins: {{ top: priceMargin, bottom: priceMargin }} }},
   handleScroll: {{ vertTouchDrag: false }},
+  handleScale: {{
+    axisPressedMouseMove: {{ time: true, price: true }},
+    axisDoubleClickReset: {{ price: true, time: true }},
+    pinch: true,
+    mouseWheel: true,
+  }},
 }});
 const series = chart.addCandlestickSeries({{
   upColor: '#26a69a', downColor: '#ef5350',
@@ -294,6 +313,26 @@ document.getElementById('seekBar').addEventListener('input', (e) => {{
   document.getElementById('playBtn').textContent = '▶ 再生';
   const idx = Math.round((e.target.value / 1000) * (N-1));
   seekTo(idx);
+}});
+
+function applyPriceMargin() {{
+  chart.priceScale('right').applyOptions({{ scaleMargins: {{ top: priceMargin, bottom: priceMargin }} }});
+}}
+
+document.getElementById('zoomInBtn').addEventListener('click', () => {{
+  priceMargin = Math.max(0.02, priceMargin - 0.04);
+  applyPriceMargin();
+}});
+
+document.getElementById('zoomOutBtn').addEventListener('click', () => {{
+  priceMargin = Math.min(0.4, priceMargin + 0.04);
+  applyPriceMargin();
+}});
+
+document.getElementById('scaleLockBtn').addEventListener('click', () => {{
+  autoScaleOn = !autoScaleOn;
+  chart.priceScale('right').applyOptions({{ autoScale: autoScaleOn }});
+  document.getElementById('scaleLockBtn').textContent = autoScaleOn ? '🔓 自動追従' : '🔒 手動固定';
 }});
 
 seekTo(0);
