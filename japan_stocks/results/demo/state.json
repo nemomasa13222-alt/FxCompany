@@ -10,15 +10,40 @@
       "shares": 195,
       "stop_price": 1452.9,
       "sector_at_entry": 979.94,
-      "days_held": 4,
+      "days_held": 5,
       "signal_gap_pct": 5.11,
       "corr": 0.725,
-      "current_price": 1498.0,
-      "unrealized_pnl": 4485
+      "current_price": 1534.0,
+      "unrealized_pnl": 11505
     }
   ],
-  "pending": [],
-  "last_run": "2026-07-27",
+  "pending": [
+    {
+      "ticker": "5659.T",
+      "sector": "鉄鋼",
+      "signal_date": "2026-07-28",
+      "signal_close": 1399.0,
+      "sector_at_signal": 366.02,
+      "sector_rise_pct": 4.33,
+      "stock_rise_pct": -1.27,
+      "gap_pct": 5.6,
+      "corr": 0.62,
+      "classification": "中間株"
+    },
+    {
+      "ticker": "2975.T",
+      "sector": "不動産業",
+      "signal_date": "2026-07-28",
+      "signal_close": 1500.0,
+      "sector_at_signal": 255.29,
+      "sector_rise_pct": 2.15,
+      "stock_rise_pct": -0.86,
+      "gap_pct": 3.01,
+      "corr": 0.667,
+      "classification": "中間株"
+    }
+  ],
+  "last_run": "2026-07-28",
   "total_realized_pnl": -145610.53480000002,
   "trade_count": 71
 }
