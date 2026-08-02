@@ -22,6 +22,18 @@ button:hover{background:#1d4ed8}
 button:disabled{background:#94a3b8;cursor:default}
 button.secondary{background:#64748b}
 button.secondary:hover{background:#475569}
+button.buy{background:#16a34a}
+button.buy:hover{background:#15803d}
+button.sell{background:#dc2626}
+button.sell:hover{background:#b91c1c}
+button.small{min-height:32px;padding:4px 12px;font-size:12px}
+.pnl-pos{color:#16a34a}
+.pnl-neg{color:#dc2626}
+#tradeCard{display:none}
+#historyTable{width:100%;border-collapse:collapse;font-size:12px}
+#historyTable th{text-align:left;color:#64748b;padding:4px}
+#historyTable td{padding:4px;border-top:1px solid #f1f5f9}
+.historyWrap{overflow-x:auto;max-height:260px;overflow-y:auto}
 select,input[type=datetime-local]{padding:10px;border-radius:8px;border:1px solid #cbd5e1;font-size:15px;min-height:44px}
 input[type=range]{flex:1;min-width:150px;min-height:32px}
 .stats{display:flex;gap:10px;flex-wrap:wrap;margin-top:14px}
@@ -103,6 +115,37 @@ input[type=range]{flex:1;min-width:150px;min-height:32px}
       <div class="stat"><div class="label">形成中バー O/H/L/C</div><div class="value" id="curBar">-</div></div>
     </div>
   </div>
+
+  <div class="card" id="tradeCard">
+    <h1>デモ売買</h1>
+    <div class="controls">
+      <button id="buyBtn" class="buy">BUY</button>
+      <button id="sellBtn" class="sell">SELL</button>
+      <button id="closeBtn" class="secondary" disabled>決済</button>
+    </div>
+    <div class="stats">
+      <div class="stat"><div class="label">ポジション</div><div class="value" id="posStatus">ポジションなし</div></div>
+      <div class="stat"><div class="label">エントリー</div><div class="value" id="posEntry">-</div></div>
+      <div class="stat"><div class="label">含み損益</div><div class="value" id="posPnl">-</div></div>
+    </div>
+    <div class="stats" style="margin-top:8px">
+      <div class="stat"><div class="label">取引数</div><div class="value" id="histCount">0</div></div>
+      <div class="stat"><div class="label">勝率</div><div class="value" id="histWinRate">-</div></div>
+      <div class="stat"><div class="label">合計pips</div><div class="value" id="histTotalPips">0.0</div></div>
+    </div>
+    <div class="sub" style="margin-top:12px;display:flex;justify-content:space-between;align-items:center">
+      <span>取引履歴</span>
+      <button id="clearHistBtn" class="secondary small" type="button">履歴クリア</button>
+    </div>
+    <div class="historyWrap">
+      <table id="historyTable">
+        <thead>
+          <tr><th>決済時刻</th><th>方向</th><th>エントリー</th><th>決済</th><th>pips</th></tr>
+        </thead>
+        <tbody id="historyBody"></tbody>
+      </table>
+    </div>
+  </div>
 </div>
 
 <script>
@@ -121,6 +164,113 @@ let lastFrameTs = null;
 let chart = null, series = null;
 let priceMargin = 0.1;
 let autoScaleOn = true;
+
+let position = null; // { dir: 'buy'|'sell', entryPrice, entryTime }
+let tradeHistory = [];
+const HISTORY_KEY = 'tickReplayTradeHistory_' + PAIR;
+
+function loadHistory() {
+  try {
+    const raw = localStorage.getItem(HISTORY_KEY);
+    tradeHistory = raw ? JSON.parse(raw) : [];
+  } catch (e) {
+    tradeHistory = [];
+  }
+}
+
+function saveHistory() {
+  try { localStorage.setItem(HISTORY_KEY, JSON.stringify(tradeHistory)); } catch (e) {}
+}
+
+function updateTradeButtons() {
+  document.getElementById('buyBtn').disabled = !!position;
+  document.getElementById('sellBtn').disabled = !!position;
+  document.getElementById('closeBtn').disabled = !position;
+}
+
+function openPosition(dir) {
+  if (position || curIdx < 0) return;
+  const tk = TICKS[curIdx];
+  position = { dir, entryPrice: dir === 'buy' ? tk.a : tk.b, entryTime: tk.t };
+  updateTradeButtons();
+  renderPositionStatus(curIdx);
+}
+
+function closePosition() {
+  if (!position || curIdx < 0) return;
+  const tk = TICKS[curIdx];
+  const exitPrice = position.dir === 'buy' ? tk.b : tk.a;
+  const pips = position.dir === 'buy'
+    ? (exitPrice - position.entryPrice) * 100
+    : (position.entryPrice - exitPrice) * 100;
+  tradeHistory.push({
+    dir: position.dir,
+    entryTime: position.entryTime,
+    entryPrice: position.entryPrice,
+    exitTime: tk.t,
+    exitPrice,
+    pips,
+  });
+  saveHistory();
+  position = null;
+  updateTradeButtons();
+  renderPositionStatus(curIdx);
+  renderHistory();
+}
+
+function cancelPosition() {
+  position = null;
+  updateTradeButtons();
+  renderPositionStatus(-1);
+}
+
+function renderPositionStatus(i) {
+  const statusEl = document.getElementById('posStatus');
+  const entryEl = document.getElementById('posEntry');
+  const pnlEl = document.getElementById('posPnl');
+  if (!position) {
+    statusEl.textContent = 'ポジションなし';
+    entryEl.textContent = '-';
+    pnlEl.textContent = '-';
+    pnlEl.className = 'value';
+    return;
+  }
+  statusEl.textContent = position.dir === 'buy' ? 'BUY 保有中' : 'SELL 保有中';
+  entryEl.textContent = `${position.entryPrice.toFixed(3)} (${fmtTime(position.entryTime + JST_OFFSET_MS)})`;
+  if (i != null && i >= 0) {
+    const tk = TICKS[i];
+    const pips = position.dir === 'buy'
+      ? (tk.b - position.entryPrice) * 100
+      : (position.entryPrice - tk.a) * 100;
+    pnlEl.textContent = (pips >= 0 ? '+' : '') + pips.toFixed(1) + ' pips';
+    pnlEl.className = 'value ' + (pips >= 0 ? 'pnl-pos' : 'pnl-neg');
+  }
+}
+
+function renderHistory() {
+  const tbody = document.getElementById('historyBody');
+  tbody.innerHTML = '';
+  let wins = 0, totalPips = 0;
+  for (const t of tradeHistory) {
+    totalPips += t.pips;
+    if (t.pips > 0) wins++;
+  }
+  const n = tradeHistory.length;
+  document.getElementById('histCount').textContent = n;
+  document.getElementById('histWinRate').textContent = n ? ((wins / n) * 100).toFixed(1) + '%' : '-';
+  document.getElementById('histTotalPips').textContent = (totalPips >= 0 ? '+' : '') + totalPips.toFixed(1);
+
+  for (let idx = tradeHistory.length - 1; idx >= 0; idx--) {
+    const t = tradeHistory[idx];
+    const tr = document.createElement('tr');
+    tr.innerHTML = `<td>${fmtTime(t.exitTime + JST_OFFSET_MS)}</td>` +
+      `<td>${t.dir === 'buy' ? 'BUY' : 'SELL'}</td>` +
+      `<td>${t.entryPrice.toFixed(3)}</td>` +
+      `<td>${t.exitPrice.toFixed(3)}</td>` +
+      `<td class="${t.pips >= 0 ? 'pnl-pos' : 'pnl-neg'}">${(t.pips >= 0 ? '+' : '') + t.pips.toFixed(1)}</td>`;
+    tbody.appendChild(tr);
+  }
+}
 
 const statusEl = document.getElementById('statusMsg');
 function setStatus(text, kind) {
@@ -164,6 +314,8 @@ async function loadManifest() {
 }
 
 async function init() {
+  loadHistory();
+  renderHistory();
   try {
     manifest = await loadManifest();
   } catch (e) {
@@ -278,6 +430,8 @@ function buildAndShow(ticks, startStr, endStr) {
   document.getElementById('rangeLabel').textContent =
     `${startStr.replace('T', ' ')} 〜 ${endStr.replace('T', ' ')}（JST）　全 ${N.toLocaleString()} ティック / ${BARS.length.toLocaleString()} 本（1分足）`;
   document.getElementById('chartCard').style.display = 'block';
+  document.getElementById('tradeCard').style.display = 'block';
+  cancelPosition();
 
   if (!chart) {
     chart = LightweightCharts.createChart(document.getElementById('chart'), {
@@ -342,6 +496,7 @@ function renderStats(i) {
   document.getElementById('curBar').textContent = `${o.toFixed(3)} / ${h.toFixed(3)} / ${l.toFixed(3)} / ${c.toFixed(3)}`;
   document.getElementById('progressLabel').textContent = `${(i+1).toLocaleString()} / ${N.toLocaleString()}`;
   document.getElementById('seekBar').value = Math.round((i / (N-1)) * 1000);
+  renderPositionStatus(i);
 }
 
 function seekTo(targetIdx) {
@@ -408,7 +563,18 @@ document.getElementById('resetBtn').addEventListener('click', () => {
   document.getElementById('playBtn').textContent = '▶ 再生';
   curBarId = -1;
   series.setData([]);
+  cancelPosition();
   seekTo(0);
+});
+
+document.getElementById('buyBtn').addEventListener('click', () => openPosition('buy'));
+document.getElementById('sellBtn').addEventListener('click', () => openPosition('sell'));
+document.getElementById('closeBtn').addEventListener('click', closePosition);
+document.getElementById('clearHistBtn').addEventListener('click', () => {
+  if (tradeHistory.length && !confirm('取引履歴を削除しますか？')) return;
+  tradeHistory = [];
+  saveHistory();
+  renderHistory();
 });
 
 document.getElementById('seekBar').addEventListener('input', (e) => {
