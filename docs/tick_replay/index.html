@@ -185,6 +185,7 @@ let priceMargin = 0.1;
 let autoScaleOn = true;
 
 let position = null; // { dir: 'buy'|'sell', entryPrice, entryTime }
+let positionLine = null;
 let tradeHistory = [];
 const HISTORY_KEY = 'tickReplayTradeHistory_' + PAIR;
 
@@ -207,10 +208,30 @@ function updateTradeButtons() {
   document.getElementById('barCloseBtn').disabled = !position;
 }
 
+function addPositionLine(dir, entryPrice) {
+  removePositionLine();
+  positionLine = series.createPriceLine({
+    price: entryPrice,
+    color: dir === 'buy' ? '#16a34a' : '#dc2626',
+    lineWidth: 2,
+    lineStyle: LightweightCharts.LineStyle.Dashed,
+    axisLabelVisible: true,
+    title: dir === 'buy' ? 'BUY' : 'SELL',
+  });
+}
+
+function removePositionLine() {
+  if (positionLine) {
+    series.removePriceLine(positionLine);
+    positionLine = null;
+  }
+}
+
 function openPosition(dir) {
   if (position || curIdx < 0) return;
   const tk = TICKS[curIdx];
   position = { dir, entryPrice: dir === 'buy' ? tk.a : tk.b, entryTime: tk.t };
+  addPositionLine(position.dir, position.entryPrice);
   updateTradeButtons();
   renderPositionStatus(curIdx);
 }
@@ -232,6 +253,7 @@ function closePosition() {
   });
   saveHistory();
   position = null;
+  removePositionLine();
   updateTradeButtons();
   renderPositionStatus(curIdx);
   renderHistory();
@@ -239,6 +261,7 @@ function closePosition() {
 
 function cancelPosition() {
   position = null;
+  removePositionLine();
   updateTradeButtons();
   renderPositionStatus(-1);
 }
