@@ -34,6 +34,13 @@ button.small{min-height:32px;padding:4px 12px;font-size:12px}
 #historyTable th{text-align:left;color:#64748b;padding:4px}
 #historyTable td{padding:4px;border-top:1px solid #f1f5f9}
 .historyWrap{overflow-x:auto;max-height:260px;overflow-y:auto}
+.tradeBar{position:fixed;left:0;right:0;bottom:0;z-index:1000;background:#fff;box-shadow:0 -2px 10px rgba(0,0,0,.12);display:none}
+.tradeBar.show{display:block}
+.tradeBarInner{max-width:1100px;margin:0 auto;padding:10px 20px calc(10px + env(safe-area-inset-bottom));display:flex;align-items:center;gap:10px}
+.tradeBarInfo{flex:0 0 auto;min-width:90px;font-size:12px;color:#64748b;line-height:1.3}
+.tradeBarInfo .pnl{font-size:16px;font-weight:700;color:#1e293b;margin-top:2px}
+.tradeBarInner button{flex:1;padding:12px 10px;font-size:14px;min-height:46px}
+body.has-tradebar{padding-bottom:90px}
 select,input[type=datetime-local]{padding:10px;border-radius:8px;border:1px solid #cbd5e1;font-size:15px;min-height:44px}
 input[type=range]{flex:1;min-width:150px;min-height:32px}
 .stats{display:flex;gap:10px;flex-wrap:wrap;margin-top:14px}
@@ -65,6 +72,11 @@ input[type=range]{flex:1;min-width:150px;min-height:32px}
   .stat .value{font-size:15px}
   .formrow{flex-direction:column;align-items:stretch}
   input[type=datetime-local]{width:100%}
+  .tradeBarInner{padding:8px 10px calc(8px + env(safe-area-inset-bottom));gap:6px}
+  .tradeBarInfo{min-width:64px;font-size:10px}
+  .tradeBarInfo .pnl{font-size:13px}
+  .tradeBarInner button{padding:10px 4px;font-size:13px;min-height:42px}
+  body.has-tradebar{padding-bottom:78px}
 }
 </style>
 </head>
@@ -118,11 +130,6 @@ input[type=range]{flex:1;min-width:150px;min-height:32px}
 
   <div class="card" id="tradeCard">
     <h1>デモ売買</h1>
-    <div class="controls">
-      <button id="buyBtn" class="buy">BUY</button>
-      <button id="sellBtn" class="sell">SELL</button>
-      <button id="closeBtn" class="secondary" disabled>決済</button>
-    </div>
     <div class="stats">
       <div class="stat"><div class="label">ポジション</div><div class="value" id="posStatus">ポジションなし</div></div>
       <div class="stat"><div class="label">エントリー</div><div class="value" id="posEntry">-</div></div>
@@ -145,6 +152,18 @@ input[type=range]{flex:1;min-width:150px;min-height:32px}
         <tbody id="historyBody"></tbody>
       </table>
     </div>
+  </div>
+</div>
+
+<div class="tradeBar" id="tradeBar">
+  <div class="tradeBarInner">
+    <div class="tradeBarInfo">
+      <div id="barStatus">ポジションなし</div>
+      <div class="pnl" id="barPnl">-</div>
+    </div>
+    <button id="barBuyBtn" class="buy">BUY</button>
+    <button id="barSellBtn" class="sell">SELL</button>
+    <button id="barCloseBtn" class="secondary" disabled>決済</button>
   </div>
 </div>
 
@@ -183,9 +202,9 @@ function saveHistory() {
 }
 
 function updateTradeButtons() {
-  document.getElementById('buyBtn').disabled = !!position;
-  document.getElementById('sellBtn').disabled = !!position;
-  document.getElementById('closeBtn').disabled = !position;
+  document.getElementById('barBuyBtn').disabled = !!position;
+  document.getElementById('barSellBtn').disabled = !!position;
+  document.getElementById('barCloseBtn').disabled = !position;
 }
 
 function openPosition(dir) {
@@ -228,22 +247,33 @@ function renderPositionStatus(i) {
   const statusEl = document.getElementById('posStatus');
   const entryEl = document.getElementById('posEntry');
   const pnlEl = document.getElementById('posPnl');
+  const barStatusEl = document.getElementById('barStatus');
+  const barPnlEl = document.getElementById('barPnl');
   if (!position) {
     statusEl.textContent = 'ポジションなし';
     entryEl.textContent = '-';
     pnlEl.textContent = '-';
     pnlEl.className = 'value';
+    barStatusEl.textContent = 'ポジションなし';
+    barPnlEl.textContent = '-';
+    barPnlEl.className = 'pnl';
     return;
   }
-  statusEl.textContent = position.dir === 'buy' ? 'BUY 保有中' : 'SELL 保有中';
+  const dirLabel = position.dir === 'buy' ? 'BUY 保有中' : 'SELL 保有中';
+  statusEl.textContent = dirLabel;
   entryEl.textContent = `${position.entryPrice.toFixed(3)} (${fmtTime(position.entryTime + JST_OFFSET_MS)})`;
+  barStatusEl.textContent = `${dirLabel} @ ${position.entryPrice.toFixed(3)}`;
   if (i != null && i >= 0) {
     const tk = TICKS[i];
     const pips = position.dir === 'buy'
       ? (tk.b - position.entryPrice) * 100
       : (position.entryPrice - tk.a) * 100;
-    pnlEl.textContent = (pips >= 0 ? '+' : '') + pips.toFixed(1) + ' pips';
-    pnlEl.className = 'value ' + (pips >= 0 ? 'pnl-pos' : 'pnl-neg');
+    const pipsText = (pips >= 0 ? '+' : '') + pips.toFixed(1) + ' pips';
+    const pipsClass = pips >= 0 ? 'pnl-pos' : 'pnl-neg';
+    pnlEl.textContent = pipsText;
+    pnlEl.className = 'value ' + pipsClass;
+    barPnlEl.textContent = pipsText;
+    barPnlEl.className = 'pnl ' + pipsClass;
   }
 }
 
@@ -431,6 +461,8 @@ function buildAndShow(ticks, startStr, endStr) {
     `${startStr.replace('T', ' ')} 〜 ${endStr.replace('T', ' ')}（JST）　全 ${N.toLocaleString()} ティック / ${BARS.length.toLocaleString()} 本（1分足）`;
   document.getElementById('chartCard').style.display = 'block';
   document.getElementById('tradeCard').style.display = 'block';
+  document.getElementById('tradeBar').classList.add('show');
+  document.body.classList.add('has-tradebar');
   cancelPosition();
 
   if (!chart) {
@@ -567,9 +599,9 @@ document.getElementById('resetBtn').addEventListener('click', () => {
   seekTo(0);
 });
 
-document.getElementById('buyBtn').addEventListener('click', () => openPosition('buy'));
-document.getElementById('sellBtn').addEventListener('click', () => openPosition('sell'));
-document.getElementById('closeBtn').addEventListener('click', closePosition);
+document.getElementById('barBuyBtn').addEventListener('click', () => openPosition('buy'));
+document.getElementById('barSellBtn').addEventListener('click', () => openPosition('sell'));
+document.getElementById('barCloseBtn').addEventListener('click', closePosition);
 document.getElementById('clearHistBtn').addEventListener('click', () => {
   if (tradeHistory.length && !confirm('取引履歴を削除しますか？')) return;
   tradeHistory = [];
