@@ -386,8 +386,8 @@ async function init() {
   startInput.max = manifest.max + 'T23:59';
   endInput.min = manifest.min + 'T00:00';
   endInput.max = manifest.max + 'T23:59';
-  startInput.value = manifest.max + 'T09:00';
-  endInput.value = manifest.max + 'T11:00';
+  startInput.value = manifest.max + 'T00:00';
+  endInput.value = manifest.max + 'T23:59';
 }
 
 async function fetchDay(dateStr) {
@@ -603,8 +603,8 @@ function step() {
 document.getElementById('loadBtn').addEventListener('click', loadRange);
 document.getElementById('latestBtn').addEventListener('click', () => {
   if (!manifest) return;
-  document.getElementById('startInput').value = manifest.max + 'T09:00';
-  document.getElementById('endInput').value = manifest.max + 'T15:00';
+  document.getElementById('startInput').value = manifest.max + 'T00:00';
+  document.getElementById('endInput').value = manifest.max + 'T23:59';
   loadRange();
 });
 
