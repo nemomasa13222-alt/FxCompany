@@ -87,6 +87,15 @@ input[type=range]{flex:1;min-width:150px;min-height:32px}
     <h1>ティックリプレイ　USDJPY</h1>
     <div class="sub" id="availSub">データ範囲を確認中...</div>
     <div class="formrow">
+      <label>指標
+        <select id="eventTypeSel"><option value="">選択...</option></select>
+      </label>
+      <label>該当回
+        <select id="eventOccurrenceSel" disabled><option value="">-</option></select>
+      </label>
+      <button id="eventLoadBtn" class="secondary" disabled>この指標を表示（前30分〜後60分）</button>
+    </div>
+    <div class="formrow">
       <label>開始 <input type="datetime-local" id="startInput"></label>
       <label>終了 <input type="datetime-local" id="endInput"></label>
       <button id="loadBtn">読み込む</button>
@@ -344,6 +353,13 @@ function jstInputToEpoch(s) {
   return Date.UTC(Y, M - 1, D, hh, mm) - JST_OFFSET_MS;
 }
 
+// UTC epoch(ms)をdatetime-local文字列（"YYYY-MM-DDTHH:mm"、JST壁時計）に変換
+function epochToJstInputStr(epochMs) {
+  const d = new Date(epochMs + JST_OFFSET_MS);
+  return `${d.getUTCFullYear()}-${pad(d.getUTCMonth()+1)}-${pad(d.getUTCDate())}` +
+    `T${pad(d.getUTCHours())}:${pad(d.getUTCMinutes())}`;
+}
+
 // JST日付("YYYY-MM-DD")の配列を、start〜endのJST暦日で列挙
 function listJstDates(startStr, endStr) {
   const startDate = startStr.split('T')[0];
@@ -367,9 +383,30 @@ async function loadManifest() {
   return res.json();
 }
 
+let EVENTS = [];
+
+async function loadEvents() {
+  try {
+    const res = await fetch('data/events.json');
+    if (!res.ok) return;
+    const payload = await res.json();
+    EVENTS = payload.events || [];
+    const sel = document.getElementById('eventTypeSel');
+    for (const name of payload.indicators || []) {
+      const opt = document.createElement('option');
+      opt.value = name;
+      opt.textContent = name;
+      sel.appendChild(opt);
+    }
+  } catch (e) {
+    EVENTS = [];
+  }
+}
+
 async function init() {
   loadHistory();
   renderHistory();
+  loadEvents();
   try {
     manifest = await loadManifest();
   } catch (e) {
@@ -599,6 +636,35 @@ function step() {
   if (curIdx >= N-1) { playing = false; document.getElementById('playBtn').textContent = '▶ 再生'; return; }
   requestAnimationFrame(step);
 }
+
+document.getElementById('eventTypeSel').addEventListener('change', (e) => {
+  const name = e.target.value;
+  const occSel = document.getElementById('eventOccurrenceSel');
+  occSel.innerHTML = '<option value="">選択...</option>';
+  occSel.disabled = !name;
+  document.getElementById('eventLoadBtn').disabled = true;
+  if (!name) return;
+  const matches = EVENTS.filter(ev => ev.name === name).sort((a, b) => a.jst.localeCompare(b.jst));
+  for (const ev of matches) {
+    const opt = document.createElement('option');
+    opt.value = ev.jst;
+    opt.textContent = `${ev.period}（${ev.jst.replace('T', ' ')} JST）`;
+    occSel.appendChild(opt);
+  }
+});
+
+document.getElementById('eventOccurrenceSel').addEventListener('change', (e) => {
+  document.getElementById('eventLoadBtn').disabled = !e.target.value;
+});
+
+document.getElementById('eventLoadBtn').addEventListener('click', () => {
+  const jstStr = document.getElementById('eventOccurrenceSel').value;
+  if (!jstStr || !manifest) return;
+  const evEpoch = jstInputToEpoch(jstStr);
+  document.getElementById('startInput').value = epochToJstInputStr(evEpoch - 30 * 60000);
+  document.getElementById('endInput').value = epochToJstInputStr(evEpoch + 60 * 60000);
+  loadRange();
+});
 
 document.getElementById('loadBtn').addEventListener('click', loadRange);
 document.getElementById('latestBtn').addEventListener('click', () => {
