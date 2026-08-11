@@ -100,6 +100,7 @@ input[type=range]{flex:1;min-width:150px;min-height:32px}
       <label>終了 <input type="datetime-local" id="endInput"></label>
       <button id="loadBtn">読み込む</button>
       <button id="latestBtn" class="secondary">最新日を読み込む</button>
+      <button id="copyUrlBtn" class="secondary small" type="button" disabled>🔗 URLをコピー</button>
     </div>
     <div class="msg" id="statusMsg"></div>
   </div>
@@ -192,6 +193,7 @@ let simMs = 0;
 let lastFrameTs = null;
 let chart = null, series = null;
 let priceMargin = 0.1;
+let pendingEventMarker = null; // { epoch, label } イベントプルダウンから読み込んだ時だけセット
 let autoScaleOn = true;
 
 let position = null; // { dir: 'buy'|'sell', entryPrice, entryTime }
@@ -425,6 +427,15 @@ async function init() {
   endInput.max = manifest.max + 'T23:59';
   startInput.value = manifest.max + 'T00:00';
   endInput.value = manifest.max + 'T23:59';
+
+  const qs = new URLSearchParams(location.search);
+  const qsStart = qs.get('start');
+  const qsEnd = qs.get('end');
+  if (qsStart && qsEnd) {
+    startInput.value = qsStart;
+    endInput.value = qsEnd;
+    loadRange();
+  }
 }
 
 async function fetchDay(dateStr) {
@@ -474,10 +485,12 @@ async function loadRange() {
     }
     if (merged.length === 0) {
       setStatus('選択期間にティックがありません（時間外の可能性）', 'error');
+      pendingEventMarker = null;
       return;
     }
     if (merged.length > HARD_CAP) {
       setStatus(`ティック数が多すぎます（${merged.length.toLocaleString()}件）。期間を狭めてください。`, 'error');
+      pendingEventMarker = null;
       return;
     }
     const warn = merged.length > SOFT_CAP
@@ -485,9 +498,14 @@ async function loadRange() {
     setStatus(warn, warn ? 'warn' : '');
 
     buildAndShow(merged, startStr, endStr);
+    const params = new URLSearchParams();
+    params.set('start', startStr);
+    params.set('end', endStr);
+    history.replaceState(null, '', '?' + params.toString());
   } catch (e) {
     console.error(e);
     setStatus('データ取得中にエラーが発生しました', 'error');
+    pendingEventMarker = null;
   } finally {
     document.getElementById('loadBtn').disabled = false;
     document.getElementById('latestBtn').disabled = false;
@@ -548,12 +566,40 @@ function buildAndShow(ticks, startStr, endStr) {
     });
   }
 
+  if (pendingEventMarker) {
+    const dispMs = pendingEventMarker.epoch + JST_OFFSET_MS;
+    const targetSec = Math.floor(dispMs / 60000) * 60;
+    const barT = nearestBarTime(targetSec);
+    series.setMarkers(barT == null ? [] : [{
+      time: barT, position: 'aboveBar', color: '#f59e0b', shape: 'arrowDown',
+      text: pendingEventMarker.label,
+    }]);
+    pendingEventMarker = null;
+  } else {
+    series.setMarkers([]);
+  }
+
   playing = false;
   document.getElementById('playBtn').textContent = '▶ 再生';
   curBarId = -1;
   series.setData([]);
   seekTo(0);
   chart.timeScale().fitContent();
+  document.getElementById('copyUrlBtn').disabled = false;
+}
+
+// BARS内でtargetSec(秒)に最も近いバー時刻を返す
+function nearestBarTime(targetSec) {
+  if (!BARS.length) return null;
+  let lo = 0, hi = BARS.length - 1;
+  while (lo < hi) {
+    const mid = (lo + hi) >> 1;
+    if (BARS[mid].t < targetSec) lo = mid + 1; else hi = mid;
+  }
+  if (lo > 0 && Math.abs(BARS[lo - 1].t - targetSec) <= Math.abs(BARS[lo].t - targetSec)) {
+    return BARS[lo - 1].t;
+  }
+  return BARS[lo].t;
 }
 
 function fmtTime(ms) {
@@ -658,9 +704,12 @@ document.getElementById('eventOccurrenceSel').addEventListener('change', (e) => 
 });
 
 document.getElementById('eventLoadBtn').addEventListener('click', () => {
+  const name = document.getElementById('eventTypeSel').value;
   const jstStr = document.getElementById('eventOccurrenceSel').value;
   if (!jstStr || !manifest) return;
   const evEpoch = jstInputToEpoch(jstStr);
+  const matched = EVENTS.find(ev => ev.name === name && ev.jst === jstStr);
+  pendingEventMarker = { epoch: evEpoch, label: matched ? `${matched.name} ${matched.period}` : name };
   document.getElementById('startInput').value = epochToJstInputStr(evEpoch - 30 * 60000);
   document.getElementById('endInput').value = epochToJstInputStr(evEpoch + 60 * 60000);
   loadRange();
@@ -672,6 +721,15 @@ document.getElementById('latestBtn').addEventListener('click', () => {
   document.getElementById('startInput').value = manifest.max + 'T00:00';
   document.getElementById('endInput').value = manifest.max + 'T23:59';
   loadRange();
+});
+
+document.getElementById('copyUrlBtn').addEventListener('click', async () => {
+  try {
+    await navigator.clipboard.writeText(location.href);
+    setStatus('URLをコピーしました。共有すると同じ期間が開きます', 'info');
+  } catch (e) {
+    setStatus('コピーに失敗しました。アドレスバーから直接コピーしてください', 'warn');
+  }
 });
 
 document.getElementById('playBtn').addEventListener('click', () => {
