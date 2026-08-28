@@ -1,0 +1,417 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="description" content="2020年から2026年8月までの日銀とFOMCの金融政策比較">
+  <title>日米金融政策 作戦盤｜2020–2026</title>
+  <style>
+    :root {
+      --ink: #17213a;
+      --muted: #667085;
+      --paper: #f7f8fb;
+      --white: #ffffff;
+      --line: #d8deea;
+      --boj: #c8324a;
+      --boj-soft: #fff0f2;
+      --fed: #1769aa;
+      --fed-soft: #edf6ff;
+      --yen: #f1b93a;
+      --positive: #19795a;
+      --shadow: 0 18px 54px rgba(23, 33, 58, .10);
+      --radius: 18px;
+    }
+
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      color: var(--ink);
+      background:
+        linear-gradient(rgba(23,33,58,.035) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(23,33,58,.035) 1px, transparent 1px),
+        var(--paper);
+      background-size: 28px 28px;
+      font-family: "Yu Gothic UI", "Hiragino Kaku Gothic ProN", Meiryo, sans-serif;
+      line-height: 1.7;
+    }
+
+    a { color: inherit; }
+    button { font: inherit; }
+    .shell { width: min(1180px, calc(100% - 36px)); margin: 0 auto; }
+
+    .masthead {
+      position: relative;
+      overflow: hidden;
+      padding: 42px 0 72px;
+      color: #fff;
+      background: var(--ink);
+    }
+    .masthead::after {
+      content: "¥ / $";
+      position: absolute;
+      right: -1vw;
+      bottom: -95px;
+      color: rgba(255,255,255,.055);
+      font: 900 clamp(150px, 25vw, 330px)/1 Georgia, serif;
+      letter-spacing: -.11em;
+      pointer-events: none;
+    }
+    .topline { display: flex; justify-content: space-between; gap: 20px; align-items: center; }
+    .eyebrow { margin: 0; color: #aeb9cf; font-size: 12px; font-weight: 800; letter-spacing: .16em; text-transform: uppercase; }
+    .asof { padding: 7px 12px; border: 1px solid rgba(255,255,255,.2); border-radius: 999px; color: #d9e1ef; font: 700 12px/1.2 ui-monospace, Consolas, monospace; }
+    h1 {
+      max-width: 900px;
+      margin: 62px 0 18px;
+      font: 900 clamp(42px, 7vw, 88px)/.98 "Yu Mincho", "Hiragino Mincho ProN", serif;
+      letter-spacing: -.055em;
+    }
+    .lede { max-width: 760px; margin: 0; color: #cad3e3; font-size: clamp(16px, 2vw, 21px); }
+
+    .rate-board {
+      position: relative;
+      z-index: 2;
+      display: grid;
+      grid-template-columns: 1fr 130px 1fr;
+      width: min(980px, calc(100% - 36px));
+      margin: -38px auto 0;
+      background: var(--white);
+      border: 1px solid var(--line);
+      border-radius: 24px;
+      box-shadow: var(--shadow);
+      overflow: hidden;
+    }
+    .rate-side { padding: 28px 32px; }
+    .rate-side.boj { border-top: 5px solid var(--boj); }
+    .rate-side.fed { border-top: 5px solid var(--fed); text-align: right; }
+    .bank-label { font-size: 13px; font-weight: 900; letter-spacing: .12em; }
+    .boj .bank-label { color: var(--boj); }
+    .fed .bank-label { color: var(--fed); }
+    .rate { margin: 5px 0; font: 900 clamp(34px, 5vw, 60px)/1 ui-monospace, Consolas, monospace; letter-spacing: -.07em; }
+    .rate-note { margin: 0; color: var(--muted); font-size: 13px; }
+    .spread {
+      display: grid;
+      place-items: center;
+      padding: 16px 8px;
+      color: var(--ink);
+      background: #f0f2f7;
+      border-inline: 1px solid var(--line);
+      text-align: center;
+    }
+    .spread strong { display: block; color: var(--positive); font: 900 25px/1 ui-monospace, Consolas, monospace; }
+    .spread small { display: block; margin-top: 7px; color: var(--muted); font-size: 11px; }
+
+    .jumpbar {
+      position: sticky;
+      top: 0;
+      z-index: 20;
+      margin-top: 28px;
+      background: rgba(247,248,251,.9);
+      border-bottom: 1px solid var(--line);
+      backdrop-filter: blur(12px);
+    }
+    .jumpbar .shell { display: flex; gap: 4px; overflow-x: auto; padding-block: 10px; }
+    .jumpbar a { padding: 8px 13px; border-radius: 999px; color: var(--muted); font-size: 13px; font-weight: 800; text-decoration: none; white-space: nowrap; }
+    .jumpbar a:hover, .jumpbar a:focus-visible { color: var(--ink); background: #fff; outline: 2px solid var(--yen); outline-offset: 1px; }
+
+    main { padding: 76px 0 110px; }
+    section { scroll-margin-top: 76px; margin-top: 100px; }
+    section:first-child { margin-top: 0; }
+    .section-head { display: grid; grid-template-columns: 190px 1fr; gap: 34px; align-items: end; margin-bottom: 34px; }
+    .section-kicker { color: var(--muted); font: 800 12px/1.3 ui-monospace, Consolas, monospace; letter-spacing: .12em; }
+    h2 { margin: 0; font: 900 clamp(30px, 4vw, 52px)/1.06 "Yu Mincho", "Hiragino Mincho ProN", serif; letter-spacing: -.04em; }
+    .section-copy { grid-column: 2; max-width: 760px; margin: -18px 0 0; color: var(--muted); }
+
+    .thesis-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+    .thesis { min-height: 220px; padding: 24px; background: #fff; border: 1px solid var(--line); border-radius: var(--radius); }
+    .thesis:nth-child(2) { transform: translateY(22px); }
+    .thesis .num { color: #a6afc0; font: 800 12px ui-monospace, Consolas, monospace; }
+    .thesis h3 { margin: 42px 0 10px; font-size: 20px; line-height: 1.35; }
+    .thesis p { margin: 0; color: var(--muted); font-size: 14px; }
+
+    .timeline {
+      position: relative;
+      display: grid;
+      grid-template-columns: 1fr 92px 1fr;
+      gap: 0;
+    }
+    .timeline::before { content: ""; position: absolute; left: 50%; top: 15px; bottom: 15px; width: 2px; background: var(--line); transform: translateX(-50%); }
+    .year-row { display: contents; }
+    .event {
+      position: relative;
+      margin: 0 0 22px;
+      padding: 22px 24px;
+      background: #fff;
+      border: 1px solid var(--line);
+      border-radius: 15px;
+    }
+    .event.boj { grid-column: 1; border-left: 4px solid var(--boj); }
+    .event.fed { grid-column: 3; border-right: 4px solid var(--fed); }
+    .event.empty { visibility: hidden; }
+    .year {
+      grid-column: 2;
+      align-self: start;
+      position: relative;
+      z-index: 2;
+      display: grid;
+      place-items: center;
+      width: 68px;
+      height: 38px;
+      margin: 17px auto 0;
+      color: #fff;
+      background: var(--ink);
+      border-radius: 999px;
+      font: 900 13px ui-monospace, Consolas, monospace;
+    }
+    .event h3 { margin: 0 0 9px; font-size: 18px; line-height: 1.4; }
+    .event p { margin: 0; color: var(--muted); font-size: 14px; }
+    .event .tag { display: inline-block; margin-top: 16px; padding: 5px 9px; border-radius: 6px; font: 800 11px ui-monospace, Consolas, monospace; }
+    .event.boj .tag { color: var(--boj); background: var(--boj-soft); }
+    .event.fed .tag { color: var(--fed); background: var(--fed-soft); }
+
+    .chart-panel { padding: 26px; background: #fff; border: 1px solid var(--line); border-radius: var(--radius); box-shadow: 0 10px 30px rgba(23,33,58,.05); }
+    .legend { display: flex; gap: 22px; align-items: center; margin-bottom: 18px; color: var(--muted); font-size: 13px; }
+    .legend span::before { content: ""; display: inline-block; width: 22px; height: 3px; margin-right: 8px; vertical-align: middle; background: currentColor; }
+    .legend .l-boj { color: var(--boj); }
+    .legend .l-fed { color: var(--fed); }
+    #rateChart { display: block; width: 100%; height: auto; overflow: visible; }
+    .chart-axis { fill: var(--muted); font: 12px ui-monospace, Consolas, monospace; }
+    .chart-grid { stroke: #e7eaf1; stroke-width: 1; }
+    .chart-boj { fill: none; stroke: var(--boj); stroke-width: 4; stroke-linejoin: round; stroke-linecap: round; }
+    .chart-fed { fill: none; stroke: var(--fed); stroke-width: 4; stroke-linejoin: round; stroke-linecap: round; }
+    .chart-dot { stroke: #fff; stroke-width: 3; }
+
+    .compare-table { width: 100%; border-collapse: collapse; background: #fff; border: 1px solid var(--line); border-radius: var(--radius); overflow: hidden; box-shadow: 0 10px 30px rgba(23,33,58,.05); }
+    .compare-table th, .compare-table td { padding: 18px 20px; border-bottom: 1px solid var(--line); vertical-align: top; text-align: left; }
+    .compare-table th { width: 22%; color: var(--muted); background: #f3f5f9; font-size: 12px; letter-spacing: .08em; }
+    .compare-table td { width: 39%; font-size: 14px; }
+    .compare-table tr:last-child th, .compare-table tr:last-child td { border-bottom: 0; }
+    .compare-table .boj-col { box-shadow: inset 3px 0 var(--boj); }
+    .compare-table .fed-col { box-shadow: inset 3px 0 var(--fed); }
+
+    .archive-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+    .archive { padding: 28px; color: #fff; border-radius: var(--radius); }
+    .archive.boj { background: var(--boj); }
+    .archive.fed { background: var(--fed); }
+    .archive h3 { margin: 0; font-size: 24px; }
+    .archive .count { margin: 28px 0 5px; font: 900 clamp(44px, 7vw, 72px)/1 ui-monospace, Consolas, monospace; letter-spacing: -.06em; }
+    .archive p { margin: 0; opacity: .85; }
+    .archive ul { margin: 24px 0 0; padding-left: 18px; font-size: 13px; opacity: .9; }
+
+    .fx-box { display: grid; grid-template-columns: 1.15fr .85fr; background: var(--ink); border-radius: 24px; overflow: hidden; color: #fff; }
+    .fx-main { padding: clamp(28px, 5vw, 58px); }
+    .fx-main h2 { max-width: 650px; }
+    .fx-main p { max-width: 680px; color: #c9d2e2; }
+    .fx-signals { display: grid; align-content: center; gap: 1px; background: rgba(255,255,255,.1); }
+    .signal { padding: 23px 28px; background: var(--ink); }
+    .signal strong { display: block; margin-bottom: 4px; color: var(--yen); }
+    .signal span { color: #c9d2e2; font-size: 13px; }
+
+    .source-list { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+    .source-list a { display: flex; justify-content: space-between; gap: 20px; padding: 18px 20px; background: #fff; border: 1px solid var(--line); border-radius: 12px; text-decoration: none; font-size: 14px; font-weight: 800; }
+    .source-list a::after { content: "↗"; color: var(--muted); }
+    .source-list a:hover { border-color: var(--ink); }
+
+    footer { padding: 30px 0 46px; color: var(--muted); border-top: 1px solid var(--line); font-size: 12px; }
+    .reveal { opacity: 0; transform: translateY(14px); transition: opacity .55s ease, transform .55s ease; }
+    .reveal.visible { opacity: 1; transform: none; }
+
+    @media (max-width: 780px) {
+      .masthead { padding-bottom: 64px; }
+      .topline { align-items: flex-start; }
+      h1 { margin-top: 44px; }
+      .rate-board { grid-template-columns: 1fr 72px 1fr; }
+      .rate-side { padding: 20px 16px; }
+      .rate { font-size: 30px; }
+      .spread strong { font-size: 19px; }
+      .section-head { grid-template-columns: 1fr; gap: 12px; }
+      .section-copy { grid-column: 1; margin: 0; }
+      .thesis-grid, .archive-grid, .fx-box, .source-list { grid-template-columns: 1fr; }
+      .thesis:nth-child(2) { transform: none; }
+      .timeline { grid-template-columns: 48px 1fr; gap: 12px; }
+      .timeline::before { left: 23px; }
+      .event.boj, .event.fed { grid-column: 2; border-right: 1px solid var(--line); }
+      .year { grid-column: 1; grid-row: auto; width: 47px; font-size: 11px; }
+      .event.empty { display: none; }
+      .compare-table { display: block; overflow-x: auto; }
+      .compare-table th, .compare-table td { min-width: 190px; }
+      .fx-signals { border-top: 1px solid rgba(255,255,255,.12); }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      html { scroll-behavior: auto; }
+      .reveal { opacity: 1; transform: none; transition: none; }
+    }
+    @media print {
+      .jumpbar { display: none; }
+      body { background: #fff; }
+      .reveal { opacity: 1; transform: none; }
+      section { break-inside: avoid; }
+    }
+  </style>
+</head>
+<body>
+  <header class="masthead">
+    <div class="shell">
+      <div class="topline">
+        <p class="eyebrow">Monetary Policy Intelligence / USDJPY</p>
+        <span class="asof">AS OF 2026-08-28</span>
+      </div>
+      <h1>日米金融政策<br>作戦盤</h1>
+      <p class="lede">コロナ危機から現在まで。日銀とFOMCの「金利」「資産買入れ」「政策の言葉」を、ドル円を動かす一枚の地図に整理する。</p>
+    </div>
+  </header>
+
+  <div class="rate-board" aria-label="現在の政策金利比較">
+    <div class="rate-side boj">
+      <div class="bank-label">日本銀行 / BOJ</div>
+      <div class="rate">0.75%</div>
+      <p class="rate-note">無担保コール翌日物</p>
+    </div>
+    <div class="spread">
+      <div><strong>+2.88</strong><small>中心値差<br>percentage points</small></div>
+    </div>
+    <div class="rate-side fed">
+      <div class="bank-label">米連邦準備制度 / FED</div>
+      <div class="rate">3.50–3.75%</div>
+      <p class="rate-note">Federal funds target range</p>
+    </div>
+  </div>
+
+  <nav class="jumpbar" aria-label="ページ内ナビゲーション">
+    <div class="shell">
+      <a href="#summary">結論</a><a href="#timeline">政策年表</a><a href="#rates">金利推移</a><a href="#framework">制度比較</a><a href="#archive">資料庫</a><a href="#fx">USDJPY</a><a href="#sources">出典</a>
+    </div>
+  </nav>
+
+  <main class="shell">
+    <section id="summary">
+      <div class="section-head">
+        <div class="section-kicker">01 / EXECUTIVE VIEW</div>
+        <h2>同じ危機から始まり、<br>出口は非対称になった。</h2>
+        <p class="section-copy">2020年は両国とも大規模緩和で信用収縮を防いだ。その後、Fedはインフレに対して急速利上げ、日銀はYCCの修正を経て緩やかに正常化。現在も米国金利が大幅に高い。</p>
+      </div>
+      <div class="thesis-grid reveal">
+        <article class="thesis"><span class="num">2020 → 2021</span><h3>危機対応は「量」と信用支援</h3><p>ゼロ近傍金利、国債・MBS買入れ、企業金融支援、ドル流動性供給。政策金利だけでは測れない緩和局面。</p></article>
+        <article class="thesis"><span class="num">2022 → 2023</span><h3>最大の分岐はインフレ対応</h3><p>Fedは525bp利上げ。日銀はマイナス金利を維持し、YCCの許容幅だけを段階的に広げた。</p></article>
+        <article class="thesis"><span class="num">2024 → 2026</span><h3>正常化の交差点</h3><p>Fedは利下げへ、日銀は利上げへ。方向は金利差縮小だが、絶対差はなお大きく、円キャリーを支える。</p></article>
+      </div>
+    </section>
+
+    <section id="timeline">
+      <div class="section-head">
+        <div class="section-kicker">02 / REGIME MAP</div>
+        <h2>政策レジームの<br>並行年表</h2>
+        <p class="section-copy">左が日銀、右がFed。中央の年を軸に、同じ世界的ショックへ両中銀がどう異なる反応をしたかを見る。</p>
+      </div>
+      <div class="timeline reveal">
+        <div class="year-row"><article class="event boj"><h3>企業金融を守る緩和強化</h3><p>国債買入れ上限を撤廃し、CP・社債、ETF、特別オペを拡充。政策金利は−0.1％。</p><span class="tag">CRISIS SUPPORT</span></article><div class="year">2020</div><article class="event fed"><h3>150bp緊急利下げ</h3><p>3月に2度の臨時利下げで0～0.25％へ。無制限型の国債・MBS購入と信用支援。</p><span class="tag">ZERO RATE + QE</span></article></div>
+        <div class="year-row"><article class="event boj"><h3>緩和を長持ちさせる点検</h3><p>10年金利変動幅を±0.25％と明確化。貸出促進付利制度、ETF買入れの柔軟化。</p><span class="tag">SUSTAINABILITY</span></article><div class="year">2021</div><article class="event fed"><h3>テーパリングへ転換</h3><p>「一過性」インフレ判断から、11月に資産購入縮小を開始。12月には速度を倍増。</p><span class="tag">TAPER</span></article></div>
+        <div class="year-row"><article class="event boj"><h3>YCC防衛と12月修正</h3><p>0.25％指値オペで上限を守った後、12月に許容幅を±0.5％へ拡大。</p><span class="tag">YCC DEFENSE</span></article><div class="year">2022</div><article class="event fed"><h3>7会合で425bp利上げ</h3><p>3月に開始、4回連続75bpを含む急速引き締め。6月からQTも開始。</p><span class="tag">FRONT-LOADED HIKES</span></article></div>
+        <div class="year-row"><article class="event boj"><h3>YCCを事実上形骸化</h3><p>7月に0.5％、10月に1％を「目途」とし、市場金利の上昇余地を拡大。</p><span class="tag">FLEXIBLE YCC</span></article><div class="year">2023</div><article class="event fed"><h3>5.25～5.50％でピーク</h3><p>7月に今回サイクルの最高水準へ。年後半は高金利を長く維持する局面。</p><span class="tag">HIGHER FOR LONGER</span></article></div>
+        <div class="year-row"><article class="event boj"><h3>マイナス金利・YCC終了</h3><p>3月に通常型の短期金利操作へ復帰。7月に0.25％へ利上げし、国債買入れ減額を決定。</p><span class="tag">NORMALIZATION</span></article><div class="year">2024</div><article class="event fed"><h3>9月から利下げ</h3><p>50bpで開始し、年末までに4.25～4.50％へ。QTの国債減額上限も縮小。</p><span class="tag">EASING START</span></article></div>
+        <div class="year-row"><article class="event boj"><h3>0.50％、0.75％へ</h3><p>賃金・物価の好循環を確認し段階的に利上げ。国債買入れ減額は市場安定に配慮。</p><span class="tag">GRADUAL HIKES</span></article><div class="year">2025</div><article class="event fed"><h3>3.50～3.75％へ</h3><p>年後半に3回の25bp利下げ。QTを終え、潤沢な準備預金を維持する短期国債購入へ。</p><span class="tag">RISK REBALANCE</span></article></div>
+        <div class="year-row"><article class="event boj"><h3>0.75％で据え置き</h3><p>7月会合まで維持。国債買入れ減額を継続しながら、次の利上げ時期を見極める。</p><span class="tag">HOLD</span></article><div class="year">2026</div><article class="event fed"><h3>3.50～3.75％で据え置き</h3><p>7月は3名が利上げを主張。インフレ残存と雇用の安定を巡り委員間の差が拡大。</p><span class="tag">HOLD / HAWKISH DISSENT</span></article></div>
+      </div>
+    </section>
+
+    <section id="rates">
+      <div class="section-head">
+        <div class="section-kicker">03 / RATE PATH</div>
+        <h2>政策金利の<br>非対称な軌道</h2>
+        <p class="section-copy">各年末または直近時点。Fedは目標レンジの中心値、日銀は主要な短期政策金利を表示。</p>
+      </div>
+      <div class="chart-panel reveal">
+        <div class="legend"><span class="l-boj">日銀</span><span class="l-fed">Fedレンジ中心値</span></div>
+        <svg id="rateChart" viewBox="0 0 980 390" role="img" aria-label="2020年から2026年の日米政策金利推移"></svg>
+      </div>
+    </section>
+
+    <section id="framework">
+      <div class="section-head">
+        <div class="section-kicker">04 / OPERATING SYSTEM</div>
+        <h2>制度と資料の<br>読み替え表</h2>
+        <p class="section-copy">似た名称でも制度は同じではない。何を操作し、どの資料で反応関数を読むかを揃える。</p>
+      </div>
+      <table class="compare-table reveal">
+        <thead><tr><th>比較軸</th><td class="boj-col"><strong>日本銀行</strong></td><td class="fed-col"><strong>FOMC / Fed</strong></td></tr></thead>
+        <tbody>
+          <tr><th>主要政策手段</th><td class="boj-col">無担保コール翌日物。2024年3月から短期金利中心へ復帰。</td><td class="fed-col">Federal funds target range。IORB等でレンジ内へ誘導。</td></tr>
+          <tr><th>物価目標</th><td class="boj-col">消費者物価前年比2％の持続的・安定的な実現。</td><td class="fed-col">PCEインフレ2％。最大雇用とのデュアルマンデート。</td></tr>
+          <tr><th>見通し資料</th><td class="boj-col">展望レポート。成長率・CPI見通しとリスク。</td><td class="fed-col">SEPと半年ごとのMonetary Policy Report。ドットチャートを含む。</td></tr>
+          <tr><th>会合後の議論</th><td class="boj-col">主な意見は約1週間、議事要旨は約1～2か月後。</td><td class="fed-col">Minutesは原則3週間後。発言者名付きTranscriptは約5年後。</td></tr>
+          <tr><th>量的正常化</th><td class="boj-col">長期国債の月間買入れ予定額を段階的に減額。</td><td class="fed-col">償還再投資の上限管理によるQT後、潤沢な準備預金維持へ。</td></tr>
+          <tr><th>為替への経路</th><td class="boj-col">円金利、国債市場、緩和度合い、政策レジームの期待。</td><td class="fed-col">ドル金利、米国債利回り、ドル流動性、世界のリスク選好。</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section id="archive">
+      <div class="section-head">
+        <div class="section-kicker">05 / PRIMARY SOURCES</div>
+        <h2>一次資料アーカイブ</h2>
+        <p class="section-copy">分析の根拠は両中銀の公式原本。ローカル保存済みの件数と検証状態。</p>
+      </div>
+      <div class="archive-grid reveal">
+        <article class="archive boj"><h3>日本銀行</h3><div class="count">240</div><p>PDF・152.1MB</p><ul><li>決定文 54 / 主な意見 53</li><li>議事要旨 53 / 展望レポート 27</li><li>総裁会見 53</li><li>破損・重複・取得エラー 0</li></ul></article>
+        <article class="archive fed"><h3>Federal Reserve</h3><div class="count">259</div><p>PDF 205＋HTML 54・139.5MB</p><ul><li>Statement 55 / Implementation Note 54</li><li>Minutes 53 / 議長会見 53</li><li>SEP 25 / MPR 14 / その他 5</li><li>破損・重複・取得エラー 0</li></ul></article>
+      </div>
+    </section>
+
+    <section id="fx">
+      <div class="fx-box reveal">
+        <div class="fx-main"><div class="section-kicker" style="color:#9faac0">06 / USDJPY TRANSMISSION</div><h2>見るべきは、今日の差より「次の差」。</h2><p>ドル円は現在の政策金利差だけでなく、市場が予想する将来の金利差で動く。日銀会合とFOMCを別々に読むのではなく、両者の反応関数がどちら向きに動いたかを一組で評価する。</p></div>
+        <div class="fx-signals">
+          <div class="signal"><strong>円高方向</strong><span>日銀の利上げ前倒し / Fedの利下げ前倒し / リスク回避によるキャリー解消</span></div>
+          <div class="signal"><strong>円安方向</strong><span>日銀の慎重姿勢 / Fedの高金利長期化 / 米インフレ再加速</span></div>
+          <div class="signal"><strong>要注意</strong><span>政策変更そのものより、声明・SEP・会見が市場予想との差を作ったとき</span></div>
+        </div>
+      </div>
+    </section>
+
+    <section id="sources">
+      <div class="section-head">
+        <div class="section-kicker">07 / SOURCE GATEWAY</div>
+        <h2>公式資料入口</h2>
+        <p class="section-copy">更新時は各年の公式ページを起点に、ローカル収集スクリプトを再実行する。</p>
+      </div>
+      <div class="source-list reveal">
+        <a href="https://www.boj.or.jp/mopo/mpmsche_minu/">日本銀行・金融政策決定会合</a>
+        <a href="https://www.boj.or.jp/mopo/mpmsche_minu/past.htm">日本銀行・過去の会合</a>
+        <a href="https://www.federalreserve.gov/monetarypolicy/fomccalendars.htm">FRB・FOMC Calendar</a>
+        <a href="https://www.federalreserve.gov/monetarypolicy/mpr_default.htm">FRB・Monetary Policy Report</a>
+      </div>
+    </section>
+  </main>
+
+  <footer><div class="shell">FxCompany / Monetary Policy Intelligence　｜　作成 2026-08-28　｜　政策判断では公式原文と最新公表値を優先</div></footer>
+
+  <script>
+    const chartData = {
+      years: [2020,2021,2022,2023,2024,2025,2026],
+      boj: [-0.1,-0.1,-0.1,-0.1,0.25,0.75,0.75],
+      fed: [0.125,0.125,4.375,5.375,4.375,3.625,3.625]
+    };
+    const svg = document.getElementById('rateChart');
+    const W=980,H=390,L=62,R=28,T=30,B=50,max=6,min=-.5;
+    const x=i=>L+i*((W-L-R)/(chartData.years.length-1));
+    const y=v=>T+(max-v)*((H-T-B)/(max-min));
+    let markup='';
+    for(let v=0;v<=6;v++){
+      markup+=`<line class="chart-grid" x1="${L}" y1="${y(v)}" x2="${W-R}" y2="${y(v)}"/><text class="chart-axis" x="${L-13}" y="${y(v)+4}" text-anchor="end">${v}%</text>`;
+    }
+    chartData.years.forEach((yr,i)=>markup+=`<text class="chart-axis" x="${x(i)}" y="${H-17}" text-anchor="middle">${yr}</text>`);
+    const path=arr=>arr.map((v,i)=>(i?'L':'M')+x(i)+','+y(v)).join(' ');
+    markup+=`<path class="chart-boj" d="${path(chartData.boj)}"/><path class="chart-fed" d="${path(chartData.fed)}"/>`;
+    chartData.boj.forEach((v,i)=>markup+=`<circle class="chart-dot" cx="${x(i)}" cy="${y(v)}" r="6" fill="var(--boj)"><title>日銀 ${chartData.years[i]}: ${v}%</title></circle>`);
+    chartData.fed.forEach((v,i)=>markup+=`<circle class="chart-dot" cx="${x(i)}" cy="${y(v)}" r="6" fill="var(--fed)"><title>Fed ${chartData.years[i]}: ${v}%</title></circle>`);
+    svg.innerHTML=markup;
+
+    const reduced=window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if(reduced){document.querySelectorAll('.reveal').forEach(el=>el.classList.add('visible'));}
+    else {
+      const observer=new IntersectionObserver(entries=>entries.forEach(entry=>{if(entry.isIntersecting){entry.target.classList.add('visible');observer.unobserve(entry.target);}}),{threshold:.12});
+      document.querySelectorAll('.reveal').forEach(el=>observer.observe(el));
+    }
+  </script>
+</body>
+</html>
