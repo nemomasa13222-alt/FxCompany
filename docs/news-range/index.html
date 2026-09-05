@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#112a3c">
+  <title>USDJPY 指標後のレンジ入り時間</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
+  <style>
+    :root{--ink:#132432;--muted:#60717d;--paper:#f4f7f8;--panel:#fff;--navy:#112a3c;--blue:#176b87;--cyan:#46b3c7;--line:#d8e0e4;--soft:#e8f2f4;--warn:#fff3d6;--bad:#b4473d}
+    *{box-sizing:border-box} body{margin:0;background:var(--paper);color:var(--ink);font-family:"Yu Gothic",YuGothic,"Hiragino Kaku Gothic ProN",sans-serif;font-feature-settings:"palt";line-height:1.6}
+    header{background:var(--navy);color:#fff;padding:28px max(18px,calc((100vw - 1180px)/2));border-bottom:5px solid var(--cyan)}
+    header h1{font-size:clamp(24px,4vw,38px);line-height:1.25;margin:0 0 7px;letter-spacing:.01em} header p{margin:0;color:#c6d7df;font-size:14px}
+    main{max-width:1180px;margin:auto;padding:22px 18px 50px}.definition{display:grid;grid-template-columns:repeat(4,1fr);background:var(--panel);border:1px solid var(--line);margin-bottom:18px}
+    .definition div{padding:13px 15px;border-right:1px solid var(--line)}.definition div:last-child{border:0}.definition small,.metric small{display:block;color:var(--muted);font-size:11px}.definition strong{font-size:15px}
+    .metrics{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin:0 0 24px}.metric{background:var(--panel);border-top:3px solid var(--blue);padding:14px 15px}.metric b{display:block;font-family:Georgia,"Times New Roman",serif;font-size:29px;line-height:1.25;color:var(--navy)}
+    section{background:var(--panel);border:1px solid var(--line);margin:0 0 18px;padding:18px}h2{font-size:19px;margin:0 0 4px}section>p{color:var(--muted);font-size:13px;margin:0 0 15px}.chart-wrap{height:360px}
+    .controls{display:flex;gap:10px;flex-wrap:wrap;margin:12px 0}.controls input,.controls select{border:1px solid #b8c5cc;background:#fff;color:var(--ink);border-radius:4px;padding:9px 11px;font:inherit}.controls input{min-width:230px;flex:1}.table-wrap{overflow:auto;max-height:68vh;border:1px solid var(--line)}
+    table{border-collapse:collapse;width:100%;font-size:13px;white-space:nowrap}th{position:sticky;top:0;background:var(--navy);color:#fff;text-align:center;padding:9px 10px;z-index:1}td{border-bottom:1px solid var(--line);padding:8px 10px;text-align:right}td:first-child,td:nth-child(2){text-align:left}tbody tr:nth-child(even){background:#f8fafb}.rate{font-weight:700}.good{color:#126c53}.low{color:var(--bad)}
+    .note{background:var(--warn);border-left:4px solid #d39c2f;padding:13px 15px;font-size:13px;margin-top:15px}.tabs{display:flex;gap:4px;margin-bottom:12px}.tabs button{border:1px solid var(--line);background:#fff;color:var(--ink);padding:8px 13px;cursor:pointer}.tabs button.active{background:var(--navy);color:#fff;border-color:var(--navy)}
+    footer{color:var(--muted);font-size:12px;text-align:center;padding:6px 18px 30px}.error{padding:24px;color:var(--bad);background:#fff;border:1px solid #e7b8b3}
+    @media(max-width:720px){header{padding-top:22px}.definition{grid-template-columns:1fr 1fr}.definition div:nth-child(2){border-right:0}.definition div{border-bottom:1px solid var(--line)}.metrics{grid-template-columns:1fr 1fr}.metric b{font-size:24px}section{padding:14px}.chart-wrap{height:440px}table{font-size:12px}.detail-extra{display:none}}
+  </style>
+</head>
+<body>
+<header><h1>USDJPY 指標後のレンジ入り時間</h1><p>2023年12月〜2026年8月・XM MT4サーバー時間・1分足</p></header>
+<main id="app"><div class="error">データを読み込んでいます。</div></main>
+<footer>FxCompany research / 判定結果は過去データであり、将来の値動きを保証するものではありません。</footer>
+<script>
+const fmt=v=>v==null?'未到達':Number(v).toFixed(1);const pct=v=>(Number(v)*100).toFixed(1)+'%';
+fetch('./data.json').then(r=>{if(!r.ok)throw Error(r.status);return r.json()}).then(data=>render(data)).catch(()=>document.querySelector('#app').innerHTML='<div class="error">データを読み込めませんでした。時間を置いて再読み込みしてください。</div>');
+function render(data){
+ const reached=data.detail.filter(x=>x['レンジ入りまで_分']!=null), delays=reached.map(x=>x['レンジ入りまで_分']).sort((a,b)=>a-b); const med=delays.length%2?delays[(delays.length-1)/2]:(delays[delays.length/2-1]+delays[delays.length/2])/2;
+ const w30=data.detail.filter(x=>x['レンジ入りまで_分']!=null&&x['レンジ入りまで_分']<=30).length/data.detail.length;
+ document.querySelector('#app').innerHTML=`
+ <div class="definition"><div><small>レンジ幅</small><strong>5 pips以内</strong></div><div><small>観測窓</small><strong>直近15分</strong></div><div><small>継続条件</small><strong>15分連続</strong></div><div><small>探索上限</small><strong>発表後6時間</strong></div></div>
+ <div class="metrics"><div class="metric"><small>対象</small><b>${data.meta.events}</b><span>発表・${data.meta.unique_indicators}種類</span></div><div class="metric"><small>6時間以内に到達</small><b>${pct(data.meta.reached/data.meta.events)}</b><span>${data.meta.reached}件</span></div><div class="metric"><small>到達ケースの中央値</small><b>${fmt(med)}分</b><span>未到達分を除く</span></div><div class="metric"><small>30分以内</small><b>${pct(w30)}</b><span>全発表に対する割合</span></div></div>
+ <section><h2>指標別の中央値</h2><p>棒が短いほど早くレンジへ移行。6時間以内に到達した発表だけで中央値を計算しています。</p><div class="chart-wrap"><canvas id="medianChart"></canvas></div><div class="note">中央値だけで判断せず、下表の「6時間以内到達率」と発表回数を併せて確認してください。</div></section>
+ <section><h2>指標別集計</h2><p>18種類を比較できます。検索欄には「FOMC」「CPI」などを入力してください。</p><div class="controls"><input id="search" type="search" placeholder="指標名を検索"><select id="sort"><option value="count">発表回数順</option><option value="fast">中央値が短い順</option><option value="rate">到達率が高い順</option></select></div><div class="table-wrap"><table><thead><tr><th>指標名</th><th>重要度</th><th>発表</th><th>到達率</th><th>中央値</th><th>平均</th><th>30分以内</th><th>120分以内</th></tr></thead><tbody id="summaryRows"></tbody></table></div></section>
+ <section><h2>個別発表</h2><p>全454件の発表時刻、レンジ入り時刻、所要時間を確認できます。</p><div class="controls"><input id="detailSearch" type="search" placeholder="指標名または年で検索"><select id="status"><option value="all">すべて</option><option value="reached">6時間以内に到達</option><option value="missed">6時間以内は未到達</option></select></div><div class="table-wrap"><table><thead><tr><th>発表時刻</th><th>指標名</th><th>重要度</th><th>レンジ入り</th><th>所要時間</th><th class="detail-extra">最大変動</th></tr></thead><tbody id="detailRows"></tbody></table></div></section>`;
+ const sorted=[...data.summary].sort((a,b)=>(a['中央値_分']??9999)-(b['中央値_分']??9999));
+ new Chart(document.querySelector('#medianChart'),{type:'bar',data:{labels:sorted.map(x=>x['指標名']),datasets:[{data:sorted.map(x=>x['中央値_分']),backgroundColor:'#176b87',borderWidth:0}]},options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>c.raw==null?'未到達':c.raw.toFixed(1)+'分'}}},scales:{x:{beginAtZero:true,title:{display:true,text:'レンジ入りまで（分）'},grid:{color:'#e4eaed'}},y:{grid:{display:false},ticks:{font:{size:11}}}}}});
+ function summaryRows(){let q=document.querySelector('#search').value.toLowerCase(), mode=document.querySelector('#sort').value;let rows=data.summary.filter(x=>x['指標名'].toLowerCase().includes(q));rows.sort((a,b)=>mode==='fast'?(a['中央値_分']??9999)-(b['中央値_分']??9999):mode==='rate'?b['6時間以内到達率']-a['6時間以内到達率']:b['発表回数']-a['発表回数']);document.querySelector('#summaryRows').innerHTML=rows.map(x=>`<tr><td>${x['指標名']}</td><td>${x['重要度']}</td><td>${x['発表回数']}</td><td class="rate ${x['6時間以内到達率']>=.6?'good':x['6時間以内到達率']<.4?'low':''}">${pct(x['6時間以内到達率'])}</td><td>${fmt(x['中央値_分'])}分</td><td>${fmt(x['平均_分'])}分</td><td>${pct(x['30分以内率'])}</td><td>${pct(x['120分以内率'])}</td></tr>`).join('')}
+ function detailRows(){let q=document.querySelector('#detailSearch').value.toLowerCase(),s=document.querySelector('#status').value;let rows=data.detail.filter(x=>(x['指標名']+x['発表年']).toLowerCase().includes(q)&& (s==='all'||(s==='reached'&&x['レンジ入りまで_分']!=null)||(s==='missed'&&x['レンジ入りまで_分']==null)));document.querySelector('#detailRows').innerHTML=rows.map(x=>`<tr><td>${x['発表時刻_MT4'].slice(0,16).replace('T',' ')}</td><td>${x['指標名']}</td><td>${x['重要度']}</td><td>${x['レンジ入り時刻_MT4']?x['レンジ入り時刻_MT4'].slice(0,16).replace('T',' '):'未到達'}</td><td>${x['レンジ入りまで_分']==null?'—':fmt(x['レンジ入りまで_分'])+'分'}</td><td class="detail-extra">${fmt(x['レンジ入り前最大変動_pips'])} pips</td></tr>`).join('')}
+ summaryRows();detailRows();['search','sort'].forEach(id=>document.querySelector('#'+id).addEventListener('input',summaryRows));['detailSearch','status'].forEach(id=>document.querySelector('#'+id).addEventListener('input',detailRows));
+}
+</script>
+</body>
+</html>
