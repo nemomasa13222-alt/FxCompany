@@ -42,8 +42,15 @@ button.small{min-height:32px;padding:4px 12px;font-size:12px}
 .tradeBarInfo .pnl{font-size:16px;font-weight:700;color:#1e293b;margin-top:2px}
 .tradeBarInner button{flex:1;padding:12px 10px;font-size:14px;min-height:46px}
 body.has-tradebar{padding-bottom:90px}
-select,input[type=datetime-local]{padding:10px;border-radius:8px;border:1px solid #cbd5e1;font-size:15px;min-height:44px}
+select,input[type=datetime-local],input[type=number]{padding:10px;border-radius:8px;border:1px solid #cbd5e1;font-size:15px;min-height:44px;background:#fff;color:#1e293b}
 input[type=range]{flex:1;min-width:150px;min-height:32px}
+.indicatorBar{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin:8px 0 2px;padding:10px 12px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:9px}
+.indicatorToggle{display:inline-flex;align-items:center;gap:8px;font-weight:600;color:#1e293b;cursor:pointer}
+.indicatorToggle input{width:19px;height:19px;accent-color:#0891b2}
+.smaSwatch{width:26px;height:3px;border-radius:2px;background:#06b6d4;box-shadow:0 0 0 1px rgba(8,145,178,.08)}
+.periodControl{display:inline-flex;align-items:center;gap:7px}
+.periodControl input{width:86px;text-align:center;font-variant-numeric:tabular-nums}
+.indicatorState{margin-left:auto;color:#64748b;font-size:12px;font-variant-numeric:tabular-nums}
 .stats{display:flex;gap:10px;flex-wrap:wrap;margin-top:14px}
 .stat{flex:1 1 120px;background:#f1f5f9;border-radius:8px;padding:10px;text-align:center}
 .stat .label{font-size:11px;color:#64748b}
@@ -73,6 +80,10 @@ input[type=range]{flex:1;min-width:150px;min-height:32px}
   .stat .value{font-size:15px}
   .formrow{flex-direction:column;align-items:stretch}
   input[type=datetime-local]{width:100%}
+  .indicatorBar{gap:9px;padding:9px 10px}
+  .indicatorToggle{flex:1 1 auto}
+  .indicatorState{flex:1 1 100%;margin-left:0}
+  .periodControl input{width:74px}
   .tradeBarInner{padding:8px 10px calc(8px + env(safe-area-inset-bottom));gap:6px}
   .tradeBarInfo{min-width:64px;font-size:10px}
   .tradeBarInfo .pnl{font-size:13px}
@@ -107,6 +118,15 @@ input[type=range]{flex:1;min-width:150px;min-height:32px}
 
   <div class="card" id="chartCard">
     <div class="sub" id="rangeLabel"></div>
+    <div class="indicatorBar" aria-label="チャート指標設定">
+      <span class="smaSwatch" aria-hidden="true"></span>
+      <label class="indicatorToggle"><input type="checkbox" id="smaToggle" checked> SMAを表示</label>
+      <label class="periodControl">期間
+        <input type="number" id="smaPeriodInput" min="2" max="500" step="1" value="75" inputmode="numeric" aria-label="SMA期間">
+        <span class="axislabel">本</span>
+      </label>
+      <span class="indicatorState" id="smaState">SMA75｜過去75本の終値平均</span>
+    </div>
     <div id="chart"></div>
     <div class="controls">
       <span class="axislabel" id="zoomTitle">縦軸ズーム</span>
@@ -191,10 +211,15 @@ let o=0,h=0,l=0,c=0;
 let playing = false;
 let simMs = 0;
 let lastFrameTs = null;
-let chart = null, series = null;
+let chart = null, series = null, smaSeries = null;
 let priceMargin = 0.1;
 let pendingEventMarker = null; // { epoch, label } イベントプルダウンから読み込んだ時だけセット
 let autoScaleOn = true;
+let smaOn = true;
+let smaPeriod = 75;
+let SMA_WARMUP_CLOSES = [];
+let SMA_PREFIX = [];
+let SMA_BY_BAR = [];
 
 let position = null; // { dir: 'buy'|'sell', entryPrice, entryTime }
 let positionLine = null;
@@ -379,6 +404,79 @@ function listJstDates(startStr, endStr) {
   return out;
 }
 
+function minuteClosesFromTicks(ticks) {
+  const closes = [];
+  let minute = null;
+  let close = null;
+  for (const tk of ticks) {
+    const currentMinute = Math.floor((tk.t + JST_OFFSET_MS) / 60000) * 60;
+    if (currentMinute !== minute) {
+      if (close != null) closes.push(close);
+      minute = currentMinute;
+    }
+    close = tk.m;
+  }
+  if (close != null) closes.push(close);
+  return closes;
+}
+
+function rebuildSmaCache() {
+  const closes = SMA_WARMUP_CLOSES.concat(BARS.map(bar => bar.c));
+  SMA_PREFIX = new Array(closes.length + 1).fill(0);
+  for (let i = 0; i < closes.length; i++) SMA_PREFIX[i + 1] = SMA_PREFIX[i] + closes[i];
+
+  const offset = SMA_WARMUP_CLOSES.length;
+  SMA_BY_BAR = BARS.map((bar, barIndex) => {
+    const idx = offset + barIndex;
+    const start = idx - smaPeriod + 1;
+    if (start < 0) return null;
+    return { time: bar.t, value: (SMA_PREFIX[idx + 1] - SMA_PREFIX[start]) / smaPeriod };
+  });
+
+  if (smaSeries) {
+    smaSeries.applyOptions({
+      title: `SMA${smaPeriod}`,
+      visible: smaOn,
+    });
+  }
+  document.getElementById('smaState').textContent = `SMA${smaPeriod}｜過去${smaPeriod}本の終値平均`;
+}
+
+function currentSmaValue(barIndex, currentClose) {
+  const idx = SMA_WARMUP_CLOSES.length + barIndex;
+  const start = idx - smaPeriod + 1;
+  if (start < 0 || !SMA_PREFIX.length) return null;
+  const previousSum = SMA_PREFIX[idx] - SMA_PREFIX[start];
+  return (previousSum + currentClose) / smaPeriod;
+}
+
+function renderSmaAtCurrentBar(barIndex, currentClose, resetCompleted) {
+  if (!smaSeries) return;
+  smaSeries.applyOptions({ visible: smaOn, title: `SMA${smaPeriod}` });
+  if (!smaOn) return;
+  if (resetCompleted) smaSeries.setData(SMA_BY_BAR.slice(0, barIndex).filter(Boolean));
+  const value = currentSmaValue(barIndex, currentClose);
+  if (value != null) smaSeries.update({ time: BARS[barIndex].t, value });
+}
+
+function refreshSmaDisplay() {
+  rebuildSmaCache();
+  if (!smaSeries) return;
+  if (!smaOn || curBarId < 0) {
+    smaSeries.setData([]);
+    smaSeries.applyOptions({ visible: smaOn });
+    return;
+  }
+  renderSmaAtCurrentBar(curBarId, c, true);
+}
+
+function syncSmaUrl() {
+  const params = new URLSearchParams(location.search);
+  params.set('sma', String(smaPeriod));
+  params.set('sma_on', smaOn ? '1' : '0');
+  history.replaceState(null, '', '?' + params.toString());
+}
+
 async function loadManifest() {
   const res = await fetch(`data/${PAIR}/manifest.json`);
   if (!res.ok) throw new Error('manifest取得失敗');
@@ -431,6 +529,12 @@ async function init() {
   const qs = new URLSearchParams(location.search);
   const qsStart = qs.get('start');
   const qsEnd = qs.get('end');
+  const qsSma = Number(qs.get('sma'));
+  if (Number.isFinite(qsSma)) smaPeriod = Math.max(2, Math.min(500, Math.round(qsSma)));
+  smaOn = qs.get('sma_on') !== '0';
+  document.getElementById('smaPeriodInput').value = String(smaPeriod);
+  document.getElementById('smaToggle').checked = smaOn;
+  document.getElementById('smaState').textContent = `SMA${smaPeriod}｜過去${smaPeriod}本の終値平均`;
   if (qsStart && qsEnd) {
     startInput.value = qsStart;
     endInput.value = qsEnd;
@@ -453,13 +557,16 @@ async function loadRange() {
   const endEpoch = jstInputToEpoch(endStr);
   if (endEpoch <= startEpoch) { setStatus('終了は開始より後にしてください', 'error'); return; }
 
-  const dates = listJstDates(startStr, endStr).filter(d => manifest.dates.includes(d));
-  if (dates.length === 0) {
+  const visibleDates = listJstDates(startStr, endStr).filter(d => manifest.dates.includes(d));
+  if (visibleDates.length === 0) {
     setStatus('この期間のデータがありません（休日・データ範囲外の可能性）', 'error');
     return;
   }
-  if (dates.length > 15) {
-    setStatus(`${dates.length}日分のデータを読み込みます。時間がかかる場合があります…`, 'warn');
+  const firstVisiblePos = manifest.dates.indexOf(visibleDates[0]);
+  const warmupDate = firstVisiblePos > 0 ? manifest.dates[firstVisiblePos - 1] : null;
+  const dates = warmupDate ? [warmupDate, ...visibleDates] : [...visibleDates];
+  if (visibleDates.length > 15) {
+    setStatus(`${visibleDates.length}日分のデータを読み込みます。時間がかかる場合があります…`, 'warn');
   } else {
     setStatus('読み込み中…', 'info');
   }
@@ -473,16 +580,20 @@ async function loadRange() {
       if (p) dayPayloads.push(p);
     }
     const merged = [];
+    const warmup = [];
     for (const p of dayPayloads) {
       const n = p.t.length;
       for (let i = 0; i < n; i++) {
         const t = p.t[i];
-        if (t >= startEpoch && t < endEpoch) {
-          const b = p.b[i], a = p.a[i];
-          merged.push({ t, b, a, m: Math.round((b + a) / 2 * 1000) / 1000 });
-        }
+        if (t >= endEpoch) continue;
+        const b = p.b[i], a = p.a[i];
+        const tick = { t, b, a, m: Math.round((b + a) / 2 * 1000) / 1000 };
+        if (t >= startEpoch) merged.push(tick);
+        else warmup.push(tick);
       }
     }
+    merged.sort((a, b) => a.t - b.t);
+    warmup.sort((a, b) => a.t - b.t);
     if (merged.length === 0) {
       setStatus('選択期間にティックがありません（時間外の可能性）', 'error');
       pendingEventMarker = null;
@@ -497,10 +608,12 @@ async function loadRange() {
       ? `注意: ${merged.length.toLocaleString()}件と多めです。動作が重い場合は期間を狭めてください。` : '';
     setStatus(warn, warn ? 'warn' : '');
 
-    buildAndShow(merged, startStr, endStr);
+    buildAndShow(merged, startStr, endStr, warmup);
     const params = new URLSearchParams();
     params.set('start', startStr);
     params.set('end', endStr);
+    params.set('sma', String(smaPeriod));
+    params.set('sma_on', smaOn ? '1' : '0');
     history.replaceState(null, '', '?' + params.toString());
   } catch (e) {
     console.error(e);
@@ -512,7 +625,7 @@ async function loadRange() {
   }
 }
 
-function buildAndShow(ticks, startStr, endStr) {
+function buildAndShow(ticks, startStr, endStr, warmupTicks) {
   TICKS = ticks;
   N = TICKS.length;
 
@@ -535,6 +648,7 @@ function buildAndShow(ticks, startStr, endStr) {
     TICKS[i].g = barIdx;
   }
   BARS = bars;
+  SMA_WARMUP_CLOSES = minuteClosesFromTicks(warmupTicks || []).slice(-500);
 
   document.getElementById('rangeLabel').textContent =
     `${startStr.replace('T', ' ')} 〜 ${endStr.replace('T', ' ')}（JST）　全 ${N.toLocaleString()} ティック / ${BARS.length.toLocaleString()} 本（1分足）`;
@@ -564,7 +678,18 @@ function buildAndShow(ticks, startStr, endStr) {
       borderUpColor: '#26a69a', borderDownColor: '#ef5350',
       wickUpColor: '#26a69a', wickDownColor: '#ef5350',
     });
+    smaSeries = chart.addLineSeries({
+      color: '#06b6d4',
+      lineWidth: 2,
+      priceLineVisible: false,
+      lastValueVisible: true,
+      crosshairMarkerVisible: true,
+      title: `SMA${smaPeriod}`,
+      visible: smaOn,
+    });
   }
+
+  rebuildSmaCache();
 
   if (pendingEventMarker) {
     const dispMs = pendingEventMarker.epoch + JST_OFFSET_MS;
@@ -583,6 +708,7 @@ function buildAndShow(ticks, startStr, endStr) {
   document.getElementById('playBtn').textContent = '▶ 再生';
   curBarId = -1;
   series.setData([]);
+  smaSeries.setData([]);
   seekTo(0);
   chart.timeScale().fitContent();
   document.getElementById('copyUrlBtn').disabled = false;
@@ -624,6 +750,7 @@ function applyTick(i) {
   }
   const bar = BARS[curBarId];
   series.update({ time: bar.t, open: o, high: h, low: l, close: c });
+  renderSmaAtCurrentBar(curBarId, c, false);
 }
 
 function renderStats(i) {
@@ -652,9 +779,11 @@ function seekTo(targetIdx) {
   }
   curBarId = targetBar;
   series.update({ time: BARS[targetBar].t, open:o, high:h, low:l, close:c });
+  renderSmaAtCurrentBar(targetBar, c, true);
   curIdx = targetIdx;
   simMs = TICKS[targetIdx].t - TICKS[0].t;
   renderStats(targetIdx);
+  chart.timeScale().fitContent();
 }
 
 function step() {
@@ -743,6 +872,7 @@ document.getElementById('resetBtn').addEventListener('click', () => {
   document.getElementById('playBtn').textContent = '▶ 再生';
   curBarId = -1;
   series.setData([]);
+  if (smaSeries) smaSeries.setData([]);
   cancelPosition();
   seekTo(0);
 });
@@ -762,6 +892,28 @@ document.getElementById('seekBar').addEventListener('input', (e) => {
   document.getElementById('playBtn').textContent = '▶ 再生';
   const idx = Math.round((e.target.value / 1000) * (N-1));
   seekTo(idx);
+});
+
+document.getElementById('smaToggle').addEventListener('change', (e) => {
+  smaOn = e.target.checked;
+  refreshSmaDisplay();
+  syncSmaUrl();
+});
+
+function applySmaPeriodInput(e) {
+  const raw = Number(e.target.value);
+  if (!Number.isFinite(raw) || raw < 2) return;
+  const value = Math.max(2, Math.min(500, Math.round(raw)));
+  smaPeriod = value;
+  refreshSmaDisplay();
+  syncSmaUrl();
+}
+
+document.getElementById('smaPeriodInput').addEventListener('input', applySmaPeriodInput);
+document.getElementById('smaPeriodInput').addEventListener('change', (e) => {
+  const value = Math.max(2, Math.min(500, Math.round(Number(e.target.value) || 75)));
+  e.target.value = String(value);
+  applySmaPeriodInput(e);
 });
 
 function applyPriceMargin() {
