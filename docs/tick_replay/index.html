@@ -228,6 +228,7 @@ let chart = null, series = null, smaSeries = null;
 let priceMargin = 0.1;
 let pendingEventMarker = null; // { epoch, label } イベントプルダウンから読み込んだ時だけセット
 let activeEventMarker = null;
+let loadRequestId = 0;
 let autoScaleOn = true;
 let smaOn = true;
 let smaPeriod = 75;
@@ -547,6 +548,15 @@ function refreshSmaDisplay() {
   renderSmaAtCurrentBar(curBarId, c, true);
 }
 
+function syncRangeUrl(startStr, endStr) {
+  const params = new URLSearchParams(location.search);
+  params.set('start', startStr);
+  params.set('end', endStr);
+  params.set('sma', String(smaPeriod));
+  params.set('sma_on', smaOn ? '1' : '0');
+  history.replaceState(null, '', '?' + params.toString());
+}
+
 function syncSmaUrl() {
   const params = new URLSearchParams(location.search);
   params.set('sma', String(smaPeriod));
@@ -639,6 +649,7 @@ async function loadRange() {
     setStatus('この期間のデータがありません（休日・データ範囲外の可能性）', 'error');
     return;
   }
+  const requestId = ++loadRequestId;
   const firstVisiblePos = manifest.dates.indexOf(visibleDates[0]);
   const warmupDate = firstVisiblePos > 0 ? manifest.dates[firstVisiblePos - 1] : null;
   const dates = warmupDate ? [warmupDate, ...visibleDates] : [...visibleDates];
@@ -654,6 +665,7 @@ async function loadRange() {
     const dayPayloads = [];
     for (const d of dates) {
       const p = await fetchDay(d);
+      if (requestId !== loadRequestId) return;
       if (p) dayPayloads.push(p);
     }
     const merged = [];
@@ -685,20 +697,19 @@ async function loadRange() {
       ? `注意: ${merged.length.toLocaleString()}件と多めです。動作が重い場合は期間を狭めてください。` : '';
     setStatus(warn, warn ? 'warn' : '');
 
+    if (requestId !== loadRequestId) return;
     buildAndShow(merged, startStr, endStr, warmup);
-    const params = new URLSearchParams();
-    params.set('start', startStr);
-    params.set('end', endStr);
-    params.set('sma', String(smaPeriod));
-    params.set('sma_on', smaOn ? '1' : '0');
-    history.replaceState(null, '', '?' + params.toString());
+    syncRangeUrl(startStr, endStr);
   } catch (e) {
+    if (requestId !== loadRequestId) return;
     console.error(e);
     setStatus('データ取得中にエラーが発生しました', 'error');
     pendingEventMarker = null;
   } finally {
-    document.getElementById('loadBtn').disabled = false;
-    document.getElementById('latestBtn').disabled = false;
+    if (requestId === loadRequestId) {
+      document.getElementById('loadBtn').disabled = false;
+      document.getElementById('latestBtn').disabled = false;
+    }
   }
 }
 
@@ -1094,8 +1105,11 @@ document.getElementById('eventLoadBtn').addEventListener('click', () => {
   const evEpoch = jstInputToEpoch(jstStr);
   const matched = EVENTS.find(ev => ev.name === name && ev.jst === jstStr);
   pendingEventMarker = { epoch: evEpoch, label: matched ? `${matched.name} ${matched.period}` : name };
-  document.getElementById('startInput').value = epochToJstInputStr(evEpoch - 30 * 60000);
-  document.getElementById('endInput').value = epochToJstInputStr(evEpoch + 60 * 60000);
+  const startStr = epochToJstInputStr(evEpoch - 30 * 60000);
+  const endStr = epochToJstInputStr(evEpoch + 60 * 60000);
+  document.getElementById('startInput').value = startStr;
+  document.getElementById('endInput').value = endStr;
+  syncRangeUrl(startStr, endStr);
   loadRange();
 });
 
