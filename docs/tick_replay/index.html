@@ -284,7 +284,7 @@ function refreshChartMarkers() {
         position: trade.dir === 'buy' ? 'belowBar' : 'aboveBar',
         color: trade.dir === 'buy' ? '#16a34a' : '#dc2626',
         shape: trade.dir === 'buy' ? 'arrowUp' : 'arrowDown',
-        text: `${trade.dir === 'buy' ? 'BUY' : 'SELL'} ${trade.historyIndex}`,
+        text: `${trade.dir === 'buy' ? 'BUY' : 'SELL'} ${trade.historyIndex} ${Number(trade.entryPrice).toFixed(3)}`,
       });
     }
     if (exitTime != null) {
@@ -293,7 +293,7 @@ function refreshChartMarkers() {
         position: trade.dir === 'buy' ? 'aboveBar' : 'belowBar',
         color: trade.pips >= 0 ? '#16a34a' : '#dc2626',
         shape: 'circle',
-        text: `決済 ${(trade.pips >= 0 ? '+' : '') + trade.pips.toFixed(1)}p`,
+        text: `決済 ${Number(trade.exitPrice).toFixed(3)} ${(trade.pips >= 0 ? '+' : '') + trade.pips.toFixed(1)}p`,
       });
     }
   }
@@ -304,7 +304,7 @@ function refreshChartMarkers() {
       position: position.dir === 'buy' ? 'belowBar' : 'aboveBar',
       color: position.dir === 'buy' ? '#16a34a' : '#dc2626',
       shape: position.dir === 'buy' ? 'arrowUp' : 'arrowDown',
-      text: `${position.dir === 'buy' ? 'BUY' : 'SELL'} 保有中`,
+      text: `${position.dir === 'buy' ? 'BUY' : 'SELL'} 保有中 ${Number(position.entryPrice).toFixed(3)}`,
     });
   }
   markers.sort((a, b) => a.time - b.time);
