@@ -111,7 +111,7 @@ input[type=range]{flex:1;min-width:150px;min-height:32px}
       <label>該当回
         <select id="eventOccurrenceSel" disabled><option value="">-</option></select>
       </label>
-      <button id="eventLoadBtn" class="secondary" disabled>この指標を表示（前30分〜後60分）</button>
+      <button id="eventLoadBtn" class="secondary" disabled>この指標を表示（前30分〜後90分）</button>
     </div>
     <div class="formrow">
       <label>開始 <input type="datetime-local" id="startInput"></label>
@@ -230,6 +230,7 @@ let lastFrameTs = null;
 let chart = null, series = null, smaSeries = null;
 let priceMargin = 0.1;
 let pendingEventMarker = null; // { epoch, label } イベントプルダウンから読み込んだ時だけセット
+let pendingEventReplayEpoch = null;
 let activeEventMarker = null;
 let loadRequestId = 0;
 let autoScaleOn = true;
@@ -309,6 +310,16 @@ function tickIndexAtOrBefore(epoch) {
     const mid = Math.ceil((lo + hi) / 2);
     if (TICKS[mid].t <= epoch) lo = mid;
     else hi = mid - 1;
+  }
+  return lo;
+}
+
+function tickIndexAtOrAfter(epoch) {
+  let lo = 0, hi = TICKS.length - 1;
+  while (lo < hi) {
+    const mid = Math.floor((lo + hi) / 2);
+    if (TICKS[mid].t < epoch) lo = mid + 1;
+    else hi = mid;
   }
   return lo;
 }
@@ -756,6 +767,8 @@ async function loadRange() {
   const visibleDates = listJstDates(startStr, endStr).filter(d => manifest.dates.includes(d));
   if (visibleDates.length === 0) {
     setStatus('この期間のデータがありません（休日・データ範囲外の可能性）', 'error');
+    pendingEventMarker = null;
+    pendingEventReplayEpoch = null;
     return;
   }
   const requestId = ++loadRequestId;
@@ -795,11 +808,13 @@ async function loadRange() {
     if (merged.length === 0) {
       setStatus('選択期間にティックがありません（時間外の可能性）', 'error');
       pendingEventMarker = null;
+      pendingEventReplayEpoch = null;
       return;
     }
     if (merged.length > HARD_CAP) {
       setStatus(`ティック数が多すぎます（${merged.length.toLocaleString()}件）。期間を狭めてください。`, 'error');
       pendingEventMarker = null;
+      pendingEventReplayEpoch = null;
       return;
     }
     const warn = merged.length > SOFT_CAP
@@ -814,6 +829,7 @@ async function loadRange() {
     console.error(e);
     setStatus('データ取得中にエラーが発生しました', 'error');
     pendingEventMarker = null;
+    pendingEventReplayEpoch = null;
   } finally {
     if (requestId === loadRequestId) {
       document.getElementById('loadBtn').disabled = false;
@@ -907,6 +923,13 @@ function buildAndShow(ticks, startStr, endStr, warmupTicks) {
   series.setData([]);
   smaSeries.setData([]);
   seekTo(0);
+  let eventStartApplied = false;
+  if (Number.isFinite(pendingEventReplayEpoch)) {
+    const eventEpoch = Math.max(TICKS[0].t, Math.min(TICKS[TICKS.length - 1].t, pendingEventReplayEpoch));
+    seekTo(tickIndexAtOrAfter(eventEpoch));
+    eventStartApplied = true;
+  }
+  pendingEventReplayEpoch = null;
   chart.timeScale().fitContent();
   chart.priceScale('right').applyOptions({
     autoScale: autoScaleOn,
@@ -915,7 +938,10 @@ function buildAndShow(ticks, startStr, endStr, warmupTicks) {
   const restored = restoreReplayState(pendingSessionState, startStr, endStr);
   pendingSessionState = null;
   if (restored) setStatus('前回の再生位置を復元しました（再生は一時停止中）', 'info');
-  else saveReplayState(true);
+  else {
+    if (eventStartApplied) setStatus('指標発表時刻から再生できます（発表前30分を表示中）', 'info');
+    saveReplayState(true);
+  }
   document.getElementById('copyUrlBtn').disabled = false;
 }
 
@@ -1230,8 +1256,9 @@ document.getElementById('eventLoadBtn').addEventListener('click', () => {
   const evEpoch = jstInputToEpoch(jstStr);
   const matched = EVENTS.find(ev => ev.name === name && ev.jst === jstStr);
   pendingEventMarker = { epoch: evEpoch, label: matched ? `${matched.name} ${matched.period}` : name };
+  pendingEventReplayEpoch = evEpoch;
   const startStr = epochToJstInputStr(evEpoch - 30 * 60000);
-  const endStr = epochToJstInputStr(evEpoch + 60 * 60000);
+  const endStr = epochToJstInputStr(evEpoch + 90 * 60000);
   document.getElementById('startInput').value = startStr;
   document.getElementById('endInput').value = endStr;
   syncRangeUrl(startStr, endStr);
