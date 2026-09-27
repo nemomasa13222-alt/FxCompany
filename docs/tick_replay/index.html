@@ -269,33 +269,37 @@ function visibleTrades() {
     .filter(trade => trade.entryTime >= from && trade.exitTime <= to);
 }
 
-function refreshChartMarkers() {
+function refreshChartMarkers(includeTradeHistory = false) {
   const exportBtn = document.getElementById('exportReportBtn');
   const trades = visibleTrades();
   if (exportBtn) exportBtn.disabled = trades.length === 0;
   if (!series || !BARS.length || !TICKS.length) return;
 
   const markers = activeEventMarker ? [activeEventMarker] : [];
-  for (const trade of trades) {
-    const entryTime = nearestBarTime(Math.floor((trade.entryTime + JST_OFFSET_MS) / 60000) * 60);
-    const exitTime = nearestBarTime(Math.floor((trade.exitTime + JST_OFFSET_MS) / 60000) * 60);
-    if (entryTime != null) {
-      markers.push({
-        time: entryTime,
-        position: trade.dir === 'buy' ? 'belowBar' : 'aboveBar',
-        color: trade.dir === 'buy' ? '#16a34a' : '#dc2626',
-        shape: trade.dir === 'buy' ? 'arrowUp' : 'arrowDown',
-        text: `${trade.dir === 'buy' ? 'BUY' : 'SELL'} ${trade.historyIndex} ${Number(trade.entryPrice).toFixed(3)}`,
-      });
-    }
-    if (exitTime != null) {
-      markers.push({
-        time: exitTime,
-        position: trade.dir === 'buy' ? 'aboveBar' : 'belowBar',
-        color: trade.pips >= 0 ? '#16a34a' : '#dc2626',
-        shape: 'circle',
-        text: `決済 ${Number(trade.exitPrice).toFixed(3)} ${(trade.pips >= 0 ? '+' : '') + trade.pips.toFixed(1)}p`,
-      });
+  // 普段のリプレイ画面は見やすさを優先し、決済済み取引を表示しない。
+  // 分析レポートを出力するときだけ一時的に売買位置を重ねる。
+  if (includeTradeHistory) {
+    for (const trade of trades) {
+      const entryTime = nearestBarTime(Math.floor((trade.entryTime + JST_OFFSET_MS) / 60000) * 60);
+      const exitTime = nearestBarTime(Math.floor((trade.exitTime + JST_OFFSET_MS) / 60000) * 60);
+      if (entryTime != null) {
+        markers.push({
+          time: entryTime,
+          position: trade.dir === 'buy' ? 'belowBar' : 'aboveBar',
+          color: trade.dir === 'buy' ? '#16a34a' : '#dc2626',
+          shape: trade.dir === 'buy' ? 'arrowUp' : 'arrowDown',
+          text: `${trade.dir === 'buy' ? 'BUY' : 'SELL'} ${trade.historyIndex} ${Number(trade.entryPrice).toFixed(3)}`,
+        });
+      }
+      if (exitTime != null) {
+        markers.push({
+          time: exitTime,
+          position: trade.dir === 'buy' ? 'aboveBar' : 'belowBar',
+          color: trade.pips >= 0 ? '#16a34a' : '#dc2626',
+          shape: 'circle',
+          text: `決済 ${Number(trade.exitPrice).toFixed(3)} ${(trade.pips >= 0 ? '+' : '') + trade.pips.toFixed(1)}p`,
+        });
+      }
     }
   }
   if (position && position.entryTime >= TICKS[0].t && position.entryTime <= currentReplayEpoch()) {
@@ -976,7 +980,7 @@ async function exportAnalysisReport() {
   exportBtn.disabled = true;
   exportBtn.textContent = '作成中...';
   try {
-    refreshChartMarkers();
+    refreshChartMarkers(true);
     const visibleRange = chart.timeScale().getVisibleLogicalRange();
     chart.timeScale().fitContent();
     await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
@@ -1073,6 +1077,7 @@ async function exportAnalysisReport() {
     console.error(error);
     setStatus('分析レポートの作成に失敗しました。ページを再読み込みしてお試しください', 'error');
   } finally {
+    refreshChartMarkers(false);
     exportBtn.textContent = '分析レポート出力';
     exportBtn.disabled = visibleTrades().length === 0;
   }
