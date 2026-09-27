@@ -243,6 +243,9 @@ let position = null; // { dir: 'buy'|'sell', entryPrice, entryTime }
 let positionLine = null;
 let tradeHistory = [];
 const HISTORY_KEY = 'tickReplayTradeHistory_' + PAIR;
+const SESSION_KEY = 'tickReplaySession_' + PAIR;
+let pendingSessionState = null;
+let lastSessionSaveAt = 0;
 
 function loadHistory() {
   try {
@@ -255,6 +258,82 @@ function loadHistory() {
 
 function saveHistory() {
   try { localStorage.setItem(HISTORY_KEY, JSON.stringify(tradeHistory)); } catch (e) {}
+}
+
+function loadSessionState() {
+  try {
+    const raw = localStorage.getItem(SESSION_KEY);
+    const state = raw ? JSON.parse(raw) : null;
+    return state && state.version === 1 ? state : null;
+  } catch (e) {
+    return null;
+  }
+}
+
+function stopPlayback() {
+  playing = false;
+  lastFrameTs = null;
+  document.getElementById('playBtn').textContent = '▶ 再生';
+}
+
+function saveReplayState(force = false) {
+  if (!TICKS.length || curIdx < 0) return;
+  const now = Date.now();
+  if (!force && now - lastSessionSaveAt < 750) return;
+  lastSessionSaveAt = now;
+  let visibleRange = null;
+  try {
+    visibleRange = chart ? chart.timeScale().getVisibleLogicalRange() : null;
+  } catch (e) {}
+  const state = {
+    version: 1,
+    savedAt: now,
+    start: document.getElementById('startInput').value,
+    end: document.getElementById('endInput').value,
+    replayEpoch: currentReplayEpoch(),
+    position: position ? { ...position } : null,
+    speed: document.getElementById('speedSel').value,
+    smaOn,
+    smaPeriod,
+    priceMargin,
+    autoScaleOn,
+    visibleRange,
+    eventMarker: activeEventMarker ? { ...activeEventMarker } : null,
+  };
+  try { localStorage.setItem(SESSION_KEY, JSON.stringify(state)); } catch (e) {}
+}
+
+function tickIndexAtOrBefore(epoch) {
+  let lo = 0, hi = TICKS.length - 1;
+  while (lo < hi) {
+    const mid = Math.ceil((lo + hi) / 2);
+    if (TICKS[mid].t <= epoch) lo = mid;
+    else hi = mid - 1;
+  }
+  return lo;
+}
+
+function restoreReplayState(state, startStr, endStr) {
+  if (!state || state.start !== startStr || state.end !== endStr || !Number.isFinite(state.replayEpoch)) return false;
+  const restoreEpoch = Math.max(TICKS[0].t, Math.min(TICKS[TICKS.length - 1].t, state.replayEpoch));
+  activeEventMarker = state.eventMarker || activeEventMarker;
+  seekTo(tickIndexAtOrBefore(restoreEpoch));
+
+  const savedPosition = state.position;
+  if (savedPosition && (savedPosition.dir === 'buy' || savedPosition.dir === 'sell') &&
+      Number.isFinite(savedPosition.entryPrice) && Number.isFinite(savedPosition.entryTime) &&
+      savedPosition.entryTime <= currentReplayEpoch()) {
+    position = { ...savedPosition };
+    addPositionLine(position.dir, position.entryPrice);
+  }
+  updateTradeButtons();
+  renderPositionStatus(curIdx);
+  refreshChartMarkers();
+
+  if (state.visibleRange && Number.isFinite(state.visibleRange.from) && Number.isFinite(state.visibleRange.to)) {
+    try { chart.timeScale().setVisibleLogicalRange(state.visibleRange); } catch (e) {}
+  }
+  return true;
 }
 
 function currentReplayEpoch() {
@@ -352,6 +431,7 @@ function openPosition(dir) {
   updateTradeButtons();
   renderPositionStatus(curIdx);
   refreshChartMarkers();
+  saveReplayState(true);
 }
 
 function closePosition() {
@@ -376,14 +456,16 @@ function closePosition() {
   renderPositionStatus(curIdx);
   renderHistory();
   refreshChartMarkers();
+  saveReplayState(true);
 }
 
-function cancelPosition() {
+function cancelPosition(persist = true) {
   position = null;
   removePositionLine();
   updateTradeButtons();
   renderPositionStatus(-1);
   refreshChartMarkers();
+  if (persist) saveReplayState(true);
 }
 
 function renderPositionStatus(i) {
@@ -623,16 +705,36 @@ async function init() {
   const qs = new URLSearchParams(location.search);
   const qsStart = qs.get('start');
   const qsEnd = qs.get('end');
+  const savedSession = loadSessionState();
   const qsSma = Number(qs.get('sma'));
-  if (Number.isFinite(qsSma)) smaPeriod = Math.max(2, Math.min(500, Math.round(qsSma)));
-  smaOn = qs.get('sma_on') !== '0';
+  if (qs.has('sma') && Number.isFinite(qsSma)) smaPeriod = Math.max(2, Math.min(500, Math.round(qsSma)));
+  smaOn = qs.has('sma_on') ? qs.get('sma_on') !== '0' : (savedSession?.smaOn ?? true);
+
+  if (savedSession) {
+    const speedValues = Array.from(document.getElementById('speedSel').options).map(opt => opt.value);
+    if (speedValues.includes(savedSession.speed)) document.getElementById('speedSel').value = savedSession.speed;
+    if (Number.isFinite(savedSession.priceMargin)) {
+      priceMargin = Math.max(0.02, Math.min(0.4, savedSession.priceMargin));
+      document.getElementById('zoomSlider').value = String(Math.round(priceMargin * 100));
+    }
+    if (typeof savedSession.autoScaleOn === 'boolean') autoScaleOn = savedSession.autoScaleOn;
+    document.getElementById('scaleLockBtn').textContent = autoScaleOn ? '🔓 自動追従' : '🔒 手動固定';
+  }
+
+  const restoreStart = qsStart || savedSession?.start;
+  const restoreEnd = qsEnd || savedSession?.end;
+  if (!qs.has('sma') && savedSession && savedSession.start === restoreStart && savedSession.end === restoreEnd &&
+      Number.isFinite(savedSession.smaPeriod)) {
+    smaPeriod = Math.max(2, Math.min(500, Math.round(savedSession.smaPeriod)));
+  }
   document.getElementById('smaPeriodInput').value = String(smaPeriod);
   document.getElementById('smaToggle').checked = smaOn;
   document.getElementById('smaState').textContent = `SMA${smaPeriod}｜過去${smaPeriod}本の終値平均`;
-  if (qsStart && qsEnd) {
-    startInput.value = qsStart;
-    endInput.value = qsEnd;
-    loadRange();
+  if (restoreStart && restoreEnd) {
+    startInput.value = restoreStart;
+    endInput.value = restoreEnd;
+    if (savedSession?.start === restoreStart && savedSession?.end === restoreEnd) pendingSessionState = savedSession;
+    await loadRange();
   }
 }
 
@@ -751,7 +853,7 @@ function buildAndShow(ticks, startStr, endStr, warmupTicks) {
   document.getElementById('tradeCard').style.display = 'block';
   document.getElementById('tradeBar').classList.add('show');
   document.body.classList.add('has-tradebar');
-  cancelPosition();
+  cancelPosition(false);
 
   if (!chart) {
     chart = LightweightCharts.createChart(document.getElementById('chart'), {
@@ -806,6 +908,14 @@ function buildAndShow(ticks, startStr, endStr, warmupTicks) {
   smaSeries.setData([]);
   seekTo(0);
   chart.timeScale().fitContent();
+  chart.priceScale('right').applyOptions({
+    autoScale: autoScaleOn,
+    scaleMargins: { top: priceMargin, bottom: priceMargin },
+  });
+  const restored = restoreReplayState(pendingSessionState, startStr, endStr);
+  pendingSessionState = null;
+  if (restored) setStatus('前回の再生位置を復元しました（再生は一時停止中）', 'info');
+  else saveReplayState(true);
   document.getElementById('copyUrlBtn').disabled = false;
 }
 
@@ -903,8 +1013,15 @@ function step() {
     curIdx = i - 1;
   }
 
-  if (curIdx >= 0) renderStats(curIdx);
-  if (curIdx >= N-1) { playing = false; document.getElementById('playBtn').textContent = '▶ 再生'; return; }
+  if (curIdx >= 0) {
+    renderStats(curIdx);
+    saveReplayState();
+  }
+  if (curIdx >= N-1) {
+    stopPlayback();
+    saveReplayState(true);
+    return;
+  }
   requestAnimationFrame(step);
 }
 
@@ -1142,6 +1259,7 @@ document.getElementById('playBtn').addEventListener('click', () => {
   playing = !playing;
   document.getElementById('playBtn').textContent = playing ? '⏸ 一時停止' : '▶ 再生';
   if (playing) { lastFrameTs = null; requestAnimationFrame(step); }
+  else saveReplayState(true);
 });
 
 document.getElementById('resetBtn').addEventListener('click', () => {
@@ -1150,8 +1268,9 @@ document.getElementById('resetBtn').addEventListener('click', () => {
   curBarId = -1;
   series.setData([]);
   if (smaSeries) smaSeries.setData([]);
-  cancelPosition();
+  cancelPosition(false);
   seekTo(0);
+  saveReplayState(true);
 });
 
 document.getElementById('barBuyBtn').addEventListener('click', () => openPosition('buy'));
@@ -1171,12 +1290,14 @@ document.getElementById('seekBar').addEventListener('input', (e) => {
   document.getElementById('playBtn').textContent = '▶ 再生';
   const idx = Math.round((e.target.value / 1000) * (N-1));
   seekTo(idx);
+  saveReplayState(true);
 });
 
 document.getElementById('smaToggle').addEventListener('change', (e) => {
   smaOn = e.target.checked;
   refreshSmaDisplay();
   syncSmaUrl();
+  saveReplayState(true);
 });
 
 function applySmaPeriodInput(e) {
@@ -1186,6 +1307,7 @@ function applySmaPeriodInput(e) {
   smaPeriod = value;
   refreshSmaDisplay();
   syncSmaUrl();
+  saveReplayState(true);
 }
 
 document.getElementById('smaPeriodInput').addEventListener('input', applySmaPeriodInput);
@@ -1203,13 +1325,25 @@ function applyPriceMargin() {
 document.getElementById('zoomSlider').addEventListener('input', (e) => {
   priceMargin = Number(e.target.value) / 100;
   applyPriceMargin();
+  saveReplayState(true);
 });
 
 document.getElementById('scaleLockBtn').addEventListener('click', () => {
   autoScaleOn = !autoScaleOn;
   if (chart) chart.priceScale('right').applyOptions({ autoScale: autoScaleOn });
   document.getElementById('scaleLockBtn').textContent = autoScaleOn ? '🔓 自動追従' : '🔒 手動固定';
+  saveReplayState(true);
 });
+
+document.getElementById('speedSel').addEventListener('change', () => saveReplayState(true));
+
+document.addEventListener('visibilitychange', () => {
+  if (!document.hidden) return;
+  stopPlayback();
+  saveReplayState(true);
+});
+
+window.addEventListener('pagehide', () => saveReplayState(true));
 
 init();
 </script>
