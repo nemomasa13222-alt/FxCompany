@@ -13,6 +13,11 @@ body{font-family:"Yu Gothic UI","Hiragino Sans",Meiryo,sans-serif;margin:0;backg
 h1{font-size:18px;margin:0 0 4px}
 .sub{color:#64748b;font-size:13px;margin-bottom:10px}
 #chart{width:100%;height:520px;touch-action:pan-y}
+.chartWrap{position:relative}
+.pairToggle{position:absolute;top:10px;left:10px;z-index:20;min-height:36px;padding:7px 13px;border:1px solid rgba(255,255,255,.75);background:#0f172a;color:#fff;font-size:13px;font-weight:700;box-shadow:0 2px 8px rgba(15,23,42,.24)}
+.pairToggle:hover{background:#1e293b}
+.pairToggle.jpyusd{background:#0f766e}
+.pairToggle.jpyusd:hover{background:#115e59}
 .controls{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-top:14px}
 .formrow{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:10px}
 label{font-size:13px;color:#475569}
@@ -102,7 +107,7 @@ input[type=range]{flex:1;min-width:150px;min-height:32px}
 <body>
 <div class="wrap">
   <div class="card">
-    <h1>ティックリプレイ　USDJPY</h1>
+    <h1 id="pageTitle">ティックリプレイ　USDJPY</h1>
     <div class="sub" id="availSub">データ範囲を確認中...</div>
     <div class="formrow">
       <label>指標
@@ -134,7 +139,10 @@ input[type=range]{flex:1;min-width:150px;min-height:32px}
       </label>
       <span class="indicatorState" id="smaState">SMA75｜過去75本の終値平均</span>
     </div>
-    <div id="chart"></div>
+    <div class="chartWrap">
+      <div id="chart"></div>
+      <button id="pairToggleBtn" class="pairToggle" type="button" aria-label="ドル円と円ドルの表示切替">表示: USDJPY</button>
+    </div>
     <div class="controls">
       <span class="axislabel" id="zoomTitle">縦軸ズーム</span>
       <span class="axislabel">広い</span>
@@ -162,8 +170,8 @@ input[type=range]{flex:1;min-width:150px;min-height:32px}
     </div>
     <div class="stats">
       <div class="stat"><div class="label">現在時刻(JST)</div><div class="value" id="curTime">-</div></div>
-      <div class="stat"><div class="label">BID</div><div class="value" id="curBid">-</div></div>
-      <div class="stat"><div class="label">ASK</div><div class="value" id="curAsk">-</div></div>
+      <div class="stat"><div class="label" id="bidLabel">USDJPY BID</div><div class="value" id="curBid">-</div></div>
+      <div class="stat"><div class="label" id="askLabel">USDJPY ASK</div><div class="value" id="curAsk">-</div></div>
       <div class="stat"><div class="label">スプレッド</div><div class="value" id="curSpread">-</div></div>
       <div class="stat"><div class="label">形成中バー O/H/L/C</div><div class="value" id="curBar">-</div></div>
     </div>
@@ -216,6 +224,8 @@ input[type=range]{flex:1;min-width:150px;min-height:32px}
 
 <script>
 const PAIR = 'USDJPY';
+const INVERSE_PAIR = 'JPYUSD';
+const INVERSE_UNIT = 100;
 const SOFT_CAP = 400000;
 const HARD_CAP = 1500000;
 const JST_OFFSET_MS = 9 * 3600 * 1000;
@@ -236,6 +246,7 @@ let loadRequestId = 0;
 let autoScaleOn = true;
 let smaOn = true;
 let smaPeriod = 75;
+let displayPair = PAIR;
 let SMA_WARMUP_CLOSES = [];
 let SMA_PREFIX = [];
 let SMA_BY_BAR = [];
@@ -247,6 +258,47 @@ const HISTORY_KEY = 'tickReplayTradeHistory_' + PAIR;
 const SESSION_KEY = 'tickReplaySession_' + PAIR;
 let pendingSessionState = null;
 let lastSessionSaveAt = 0;
+
+function toDisplayPrice(usdJpyPrice) {
+  if (!Number.isFinite(usdJpyPrice) || usdJpyPrice <= 0) return null;
+  return displayPair === INVERSE_PAIR ? INVERSE_UNIT / usdJpyPrice : usdJpyPrice;
+}
+
+function displayBar(time, open, high, low, close) {
+  if (displayPair === INVERSE_PAIR) {
+    return {
+      time,
+      open: INVERSE_UNIT / open,
+      high: INVERSE_UNIT / low,
+      low: INVERSE_UNIT / high,
+      close: INVERSE_UNIT / close,
+    };
+  }
+  return { time, open, high, low, close };
+}
+
+function formatDisplayPrice(value) {
+  return Number(value).toFixed(displayPair === INVERSE_PAIR ? 5 : 3);
+}
+
+function updatePairLabels() {
+  const isInverse = displayPair === INVERSE_PAIR;
+  const button = document.getElementById('pairToggleBtn');
+  button.textContent = `表示: ${displayPair}`;
+  button.classList.toggle('jpyusd', isInverse);
+  document.getElementById('pageTitle').textContent = `ティックリプレイ　${displayPair}`;
+  document.getElementById('bidLabel').textContent = `${displayPair} BID`;
+  document.getElementById('askLabel').textContent = `${displayPair} ASK`;
+}
+
+function applyPairSeriesOptions() {
+  if (!series || !smaSeries) return;
+  const precision = displayPair === INVERSE_PAIR ? 5 : 3;
+  const minMove = displayPair === INVERSE_PAIR ? 0.00001 : 0.001;
+  const priceFormat = { type: 'price', precision, minMove };
+  series.applyOptions({ title: displayPair, priceFormat });
+  smaSeries.applyOptions({ priceFormat });
+}
 
 function loadHistory() {
   try {
@@ -296,6 +348,7 @@ function saveReplayState(force = false) {
     speed: document.getElementById('speedSel').value,
     smaOn,
     smaPeriod,
+     displayPair,
     priceMargin,
     autoScaleOn,
     visibleRange,
@@ -381,7 +434,7 @@ function refreshChartMarkers(includeTradeHistory = false) {
           position: trade.dir === 'buy' ? 'belowBar' : 'aboveBar',
           color: trade.dir === 'buy' ? '#16a34a' : '#dc2626',
           shape: trade.dir === 'buy' ? 'arrowUp' : 'arrowDown',
-          text: `${trade.dir === 'buy' ? 'BUY' : 'SELL'} ${trade.historyIndex} ${Number(trade.entryPrice).toFixed(3)}`,
+          text: `${trade.dir === 'buy' ? 'BUY' : 'SELL'} ${trade.historyIndex} ${formatDisplayPrice(toDisplayPrice(trade.entryPrice))}`,
         });
       }
       if (exitTime != null) {
@@ -390,7 +443,7 @@ function refreshChartMarkers(includeTradeHistory = false) {
           position: trade.dir === 'buy' ? 'aboveBar' : 'belowBar',
           color: trade.pips >= 0 ? '#16a34a' : '#dc2626',
           shape: 'circle',
-          text: `決済 ${Number(trade.exitPrice).toFixed(3)} ${(trade.pips >= 0 ? '+' : '') + trade.pips.toFixed(1)}p`,
+          text: `決済 ${formatDisplayPrice(toDisplayPrice(trade.exitPrice))} ${(trade.pips >= 0 ? '+' : '') + trade.pips.toFixed(1)}p`,
         });
       }
     }
@@ -402,7 +455,7 @@ function refreshChartMarkers(includeTradeHistory = false) {
       position: position.dir === 'buy' ? 'belowBar' : 'aboveBar',
       color: position.dir === 'buy' ? '#16a34a' : '#dc2626',
       shape: position.dir === 'buy' ? 'arrowUp' : 'arrowDown',
-      text: `${position.dir === 'buy' ? 'BUY' : 'SELL'} 保有中 ${Number(position.entryPrice).toFixed(3)}`,
+      text: `${position.dir === 'buy' ? 'BUY' : 'SELL'} 保有中 ${formatDisplayPrice(toDisplayPrice(position.entryPrice))}`,
     });
   }
   markers.sort((a, b) => a.time - b.time);
@@ -418,7 +471,7 @@ function updateTradeButtons() {
 function addPositionLine(dir, entryPrice) {
   removePositionLine();
   positionLine = series.createPriceLine({
-    price: entryPrice,
+    price: toDisplayPrice(entryPrice),
     color: dir === 'buy' ? '#16a34a' : '#dc2626',
     lineWidth: 2,
     lineStyle: LightweightCharts.LineStyle.Dashed,
@@ -496,9 +549,10 @@ function renderPositionStatus(i) {
     return;
   }
   const dirLabel = position.dir === 'buy' ? 'BUY 保有中' : 'SELL 保有中';
+  const displayEntry = formatDisplayPrice(toDisplayPrice(position.entryPrice));
   statusEl.textContent = dirLabel;
-  entryEl.textContent = `${position.entryPrice.toFixed(3)} (${fmtTime(position.entryTime + JST_OFFSET_MS)})`;
-  barStatusEl.textContent = `${dirLabel} @ ${position.entryPrice.toFixed(3)}`;
+  entryEl.textContent = `${displayEntry} (${fmtTime(position.entryTime + JST_OFFSET_MS)})`;
+  barStatusEl.textContent = `${dirLabel} @ ${displayEntry}`;
   if (i != null && i >= 0) {
     const tk = TICKS[i];
     const pips = position.dir === 'buy'
@@ -599,7 +653,7 @@ function minuteClosesFromTicks(ticks) {
 }
 
 function rebuildSmaCache() {
-  const closes = SMA_WARMUP_CLOSES.concat(BARS.map(bar => bar.c));
+  const closes = SMA_WARMUP_CLOSES.concat(BARS.map(bar => bar.c)).map(toDisplayPrice);
   SMA_PREFIX = new Array(closes.length + 1).fill(0);
   for (let i = 0; i < closes.length; i++) SMA_PREFIX[i + 1] = SMA_PREFIX[i] + closes[i];
 
@@ -645,7 +699,7 @@ function refreshSmaDisplay() {
     smaSeries.applyOptions({ visible: smaOn });
     return;
   }
-  renderSmaAtCurrentBar(curBarId, c, true);
+  renderSmaAtCurrentBar(curBarId, toDisplayPrice(c), true);
 }
 
 function syncRangeUrl(startStr, endStr) {
@@ -654,6 +708,7 @@ function syncRangeUrl(startStr, endStr) {
   params.set('end', endStr);
   params.set('sma', String(smaPeriod));
   params.set('sma_on', smaOn ? '1' : '0');
+  params.set('pair', displayPair);
   history.replaceState(null, '', '?' + params.toString());
 }
 
@@ -661,7 +716,32 @@ function syncSmaUrl() {
   const params = new URLSearchParams(location.search);
   params.set('sma', String(smaPeriod));
   params.set('sma_on', smaOn ? '1' : '0');
+  params.set('pair', displayPair);
   history.replaceState(null, '', '?' + params.toString());
+}
+
+function toggleDisplayPair() {
+  let visibleRange = null;
+  if (chart) {
+    try { visibleRange = chart.timeScale().getVisibleLogicalRange(); } catch (e) {}
+  }
+
+  displayPair = displayPair === PAIR ? INVERSE_PAIR : PAIR;
+  updatePairLabels();
+  applyPairSeriesOptions();
+  rebuildSmaCache();
+  removePositionLine();
+
+  if (TICKS.length && curIdx >= 0) {
+    seekTo(curIdx);
+    if (position) addPositionLine(position.dir, position.entryPrice);
+    renderPositionStatus(curIdx);
+  }
+  if (visibleRange) {
+    try { chart.timeScale().setVisibleLogicalRange(visibleRange); } catch (e) {}
+  }
+  syncSmaUrl();
+  saveReplayState(true);
 }
 
 async function loadManifest() {
@@ -720,6 +800,9 @@ async function init() {
   const qsSma = Number(qs.get('sma'));
   if (qs.has('sma') && Number.isFinite(qsSma)) smaPeriod = Math.max(2, Math.min(500, Math.round(qsSma)));
   smaOn = qs.has('sma_on') ? qs.get('sma_on') !== '0' : (savedSession?.smaOn ?? true);
+  const requestedPair = (qs.get('pair') || savedSession?.displayPair || PAIR).toUpperCase();
+  displayPair = requestedPair === INVERSE_PAIR ? INVERSE_PAIR : PAIR;
+  updatePairLabels();
 
   if (savedSession) {
     const speedValues = Array.from(document.getElementById('speedSel').options).map(opt => opt.value);
@@ -890,6 +973,7 @@ function buildAndShow(ticks, startStr, endStr, warmupTicks) {
       upColor: '#26a69a', downColor: '#ef5350',
       borderUpColor: '#26a69a', borderDownColor: '#ef5350',
       wickUpColor: '#26a69a', wickDownColor: '#ef5350',
+      title: displayPair,
     });
     smaSeries = chart.addLineSeries({
       color: '#06b6d4',
@@ -901,6 +985,8 @@ function buildAndShow(ticks, startStr, endStr, warmupTicks) {
       visible: smaOn,
     });
   }
+
+  applyPairSeriesOptions();
 
   rebuildSmaCache();
 
@@ -970,7 +1056,7 @@ function applyTick(i) {
   if (tk.g !== curBarId) {
     if (curBarId >= 0) {
       const prevBar = BARS[curBarId];
-      series.update({ time: prevBar.t, open: prevBar.o, high: prevBar.h, low: prevBar.l, close: prevBar.c });
+      series.update(displayBar(prevBar.t, prevBar.o, prevBar.h, prevBar.l, prevBar.c));
     }
     curBarId = tk.g;
     o = tk.m; h = tk.m; l = tk.m; c = tk.m;
@@ -980,17 +1066,22 @@ function applyTick(i) {
     c = tk.m;
   }
   const bar = BARS[curBarId];
-  series.update({ time: bar.t, open: o, high: h, low: l, close: c });
-  renderSmaAtCurrentBar(curBarId, c, false);
+  series.update(displayBar(bar.t, o, h, l, c));
+  renderSmaAtCurrentBar(curBarId, toDisplayPrice(c), false);
 }
 
 function renderStats(i) {
   const tk = TICKS[i];
+  const displayBid = displayPair === INVERSE_PAIR ? INVERSE_UNIT / tk.a : tk.b;
+  const displayAsk = displayPair === INVERSE_PAIR ? INVERSE_UNIT / tk.b : tk.a;
+  const displayOhlc = displayBar(BARS[curBarId].t, o, h, l, c);
   document.getElementById('curTime').textContent = fmtTime(tk.t + JST_OFFSET_MS);
-  document.getElementById('curBid').textContent = tk.b.toFixed(3);
-  document.getElementById('curAsk').textContent = tk.a.toFixed(3);
+  document.getElementById('curBid').textContent = formatDisplayPrice(displayBid);
+  document.getElementById('curAsk').textContent = formatDisplayPrice(displayAsk);
   document.getElementById('curSpread').textContent = ((tk.a - tk.b) * 100).toFixed(1) + ' pips';
-  document.getElementById('curBar').textContent = `${o.toFixed(3)} / ${h.toFixed(3)} / ${l.toFixed(3)} / ${c.toFixed(3)}`;
+  document.getElementById('curBar').textContent =
+    `${formatDisplayPrice(displayOhlc.open)} / ${formatDisplayPrice(displayOhlc.high)} / ` +
+    `${formatDisplayPrice(displayOhlc.low)} / ${formatDisplayPrice(displayOhlc.close)}`;
   document.getElementById('progressLabel').textContent = `${(i+1).toLocaleString()} / ${N.toLocaleString()}`;
   document.getElementById('seekBar').value = Math.round((i / (N-1)) * 1000);
   renderPositionStatus(i);
@@ -999,7 +1090,7 @@ function renderStats(i) {
 function seekTo(targetIdx) {
   targetIdx = Math.max(0, Math.min(N-1, targetIdx));
   const targetBar = TICKS[targetIdx].g;
-  const completed = BARS.slice(0, targetBar).map(b => ({ time:b.t, open:b.o, high:b.h, low:b.l, close:b.c }));
+  const completed = BARS.slice(0, targetBar).map(b => displayBar(b.t, b.o, b.h, b.l, b.c));
   series.setData(completed);
   const startTick = BARS[targetBar].s;
   o = TICKS[startTick].m; h = o; l = o; c = o;
@@ -1009,8 +1100,8 @@ function seekTo(targetIdx) {
     else { if (m>h) h=m; if (m<l) l=m; c=m; }
   }
   curBarId = targetBar;
-  series.update({ time: BARS[targetBar].t, open:o, high:h, low:l, close:c });
-  renderSmaAtCurrentBar(targetBar, c, true);
+  series.update(displayBar(BARS[targetBar].t, o, h, l, c));
+  renderSmaAtCurrentBar(targetBar, toDisplayPrice(c), true);
   curIdx = targetIdx;
   simMs = TICKS[targetIdx].t - TICKS[0].t;
   renderStats(targetIdx);
@@ -1288,6 +1379,8 @@ document.getElementById('playBtn').addEventListener('click', () => {
   if (playing) { lastFrameTs = null; requestAnimationFrame(step); }
   else saveReplayState(true);
 });
+
+document.getElementById('pairToggleBtn').addEventListener('click', toggleDisplayPair);
 
 document.getElementById('resetBtn').addEventListener('click', () => {
   playing = false;
