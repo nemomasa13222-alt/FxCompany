@@ -665,7 +665,7 @@ function syncSmaUrl() {
 }
 
 async function loadManifest() {
-  const res = await fetch(`data/${PAIR}/manifest.json`);
+  const res = await fetch(`data/${PAIR}/manifest.json`, { cache: 'no-store' });
   if (!res.ok) throw new Error('manifest取得失敗');
   return res.json();
 }
@@ -674,7 +674,7 @@ let EVENTS = [];
 
 async function loadEvents() {
   try {
-    const res = await fetch('data/events.json');
+    const res = await fetch('data/events.json', { cache: 'no-store' });
     if (!res.ok) return;
     const payload = await res.json();
     EVENTS = payload.events || [];
@@ -750,7 +750,7 @@ async function init() {
 }
 
 async function fetchDay(dateStr) {
-  const res = await fetch(`data/${PAIR}/${dateStr}.json`);
+  const res = await fetch(`data/${PAIR}/${dateStr}.json`, { cache: 'no-store' });
   if (!res.ok) return null;
   return res.json();
 }
