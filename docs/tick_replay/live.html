@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>リアルタイム USDJPY</title>
+<script src="vendor/lightweight-charts.standalone.production.js"></script>
+<style>
+*{box-sizing:border-box}
+body{font-family:"Yu Gothic UI","Hiragino Sans",Meiryo,sans-serif;margin:0;background:#eef2f7;color:#1e293b;-webkit-text-size-adjust:100%}
+.wrap{max-width:1100px;margin:0 auto;padding:20px}
+.card{background:#fff;border-radius:12px;padding:20px 24px;margin-bottom:16px;box-shadow:0 1px 3px rgba(0,0,0,.08)}
+h1{font-size:18px;margin:0 0 4px}.sub{color:#64748b;font-size:13px;margin-bottom:10px}
+.topline{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}.status{display:inline-flex;align-items:center;gap:7px;border:1px solid #cbd5e1;border-radius:999px;padding:6px 10px;font-size:12px;color:#64748b;white-space:nowrap}.dot{width:9px;height:9px;border-radius:50%;background:#94a3b8}.status.live{color:#15803d;border-color:#bbf7d0;background:#f0fdf4}.status.live .dot{background:#22c55e;box-shadow:0 0 0 4px rgba(34,197,94,.12)}.status.error{color:#b91c1c;border-color:#fecaca;background:#fef2f2}.status.error .dot{background:#ef4444}
+.formrow,.controls{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:10px}label,.axislabel{font-size:13px;color:#475569}
+input[type=url],input[type=number],select{padding:10px;border-radius:8px;border:1px solid #cbd5e1;font-size:15px;min-height:44px;background:#fff;color:#1e293b}input[type=url]{flex:1;min-width:280px}
+button,.buttonLink{display:inline-flex;align-items:center;justify-content:center;background:#2563eb;color:#fff;border:none;border-radius:8px;padding:10px 18px;font-size:15px;cursor:pointer;min-height:44px;text-decoration:none;touch-action:manipulation}button:hover,.buttonLink:hover{background:#1d4ed8}.secondary{background:#64748b}.secondary:hover{background:#475569}
+.msg{font-size:13px;margin-top:10px;color:#64748b}.msg.error{color:#dc2626}.msg.warn{color:#d97706}
+#chart{width:100%;height:560px;touch-action:pan-y}.chartWrap{position:relative}.pairToggle{position:absolute;top:10px;left:10px;z-index:20;min-height:36px;padding:7px 13px;border:1px solid rgba(255,255,255,.75);background:#0f172a;color:#fff;font-size:13px;font-weight:700;box-shadow:0 2px 8px rgba(15,23,42,.24)}.pairToggle:hover{background:#1e293b}.pairToggle.jpyusd{background:#0f766e}.pairToggle.jpyusd:hover{background:#115e59}
+.indicatorBar{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin:8px 0 2px;padding:10px 12px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:9px}.indicatorToggle{display:inline-flex;align-items:center;gap:8px;font-weight:600;color:#1e293b;cursor:pointer}.indicatorToggle input{width:19px;height:19px;accent-color:#0891b2}.smaSwatch{width:26px;height:3px;border-radius:2px;background:#06b6d4}.periodControl{display:inline-flex;align-items:center;gap:7px}.periodControl input{width:86px;text-align:center}.indicatorState{margin-left:auto;color:#64748b;font-size:12px}
+.stats{display:flex;gap:10px;flex-wrap:wrap;margin-top:14px}.stat{flex:1 1 130px;background:#f1f5f9;border-radius:8px;padding:10px;text-align:center}.stat .label{font-size:11px;color:#64748b}.stat .value{font-size:17px;font-weight:600;margin-top:2px;font-variant-numeric:tabular-nums}.fresh{color:#15803d}.stale{color:#d97706}
+.footnote{font-size:12px;line-height:1.65;color:#64748b;margin:0}.backlink{font-size:13px;color:#2563eb;text-decoration:none}.backlink:hover{text-decoration:underline}
+@media(max-width:640px){.wrap{padding:10px}.card{padding:14px;border-radius:10px}h1{font-size:16px}.topline{align-items:stretch}.status{align-self:flex-start}.formrow{flex-direction:column;align-items:stretch}input[type=url]{width:100%;min-width:0}.formrow button{width:100%}#chart{height:390px}.indicatorBar{gap:9px;padding:9px 10px}.indicatorState{flex:1 1 100%;margin-left:0}.periodControl input{width:74px}.stats{gap:6px}.stat{flex:1 1 45%;padding:8px}.stat .value{font-size:15px}.controls select{flex:1}.controls button{flex:1}}
+@media(prefers-reduced-motion:reduce){*{scroll-behavior:auto!important;transition:none!important}}
+</style>
+</head>
+<body>
+<main class="wrap">
+  <section class="card">
+    <div class="topline">
+      <div><h1 id="pageTitle">リアルタイム　USDJPY</h1><div class="sub">XM MT4のBid/Askを2秒間隔で表示</div></div>
+      <div id="connectionStatus" class="status"><span class="dot"></span><span id="statusText">未接続</span></div>
+    </div>
+    <div class="formrow">
+      <label for="feedUrl">配信URL</label>
+      <input type="url" id="feedUrl" placeholder="https://usdjpy-live-feed.xxxxx.workers.dev" autocomplete="url" spellcheck="false">
+      <button type="button" id="connectBtn">接続</button>
+    </div>
+    <div id="message" class="msg">初回だけ配信URLを入力してください。この端末内に保存します。</div>
+  </section>
+
+  <section class="card">
+    <div class="indicatorBar" aria-label="チャート指標設定">
+      <span class="smaSwatch" aria-hidden="true"></span>
+      <label class="indicatorToggle"><input type="checkbox" id="smaToggle" checked> SMAを表示</label>
+      <label class="periodControl">期間 <input type="number" id="smaPeriod" min="2" max="500" value="20" inputmode="numeric"><span class="axislabel">本</span></label>
+      <span class="indicatorState" id="smaState">SMA20｜過去20本の終値平均</span>
+    </div>
+    <div class="chartWrap">
+      <div id="chart"></div>
+      <button id="pairToggle" class="pairToggle" type="button">表示: USDJPY</button>
+    </div>
+    <div class="controls">
+      <label for="windowSelect">表示範囲</label>
+      <select id="windowSelect">
+        <option value="30">直近30分</option><option value="60">直近60分</option><option value="120" selected>直近2時間</option><option value="240">直近4時間</option><option value="720">直近12時間</option>
+      </select>
+      <button type="button" id="followBtn" class="secondary">最新位置へ</button>
+    </div>
+    <div class="stats">
+      <div class="stat"><div class="label">更新時刻(JST)</div><div class="value" id="tickTime">-</div></div>
+      <div class="stat"><div class="label" id="bidLabel">USDJPY BID</div><div class="value" id="bidValue">-</div></div>
+      <div class="stat"><div class="label" id="askLabel">USDJPY ASK</div><div class="value" id="askValue">-</div></div>
+      <div class="stat"><div class="label">スプレッド</div><div class="value" id="spreadValue">-</div></div>
+      <div class="stat"><div class="label">受信状態</div><div class="value" id="freshness">-</div></div>
+    </div>
+  </section>
+
+  <section class="card">
+    <p class="footnote">レート配信には、XMへ接続したMT4と送信EAの稼働が必要です。画面を離れて復帰した場合は直近の1分足を再取得します。チャートは閲覧用で、注文は発注しません。</p>
+    <p><a class="backlink" href="./">← ティックリプレイへ戻る</a></p>
+  </section>
+</main>
+
+<script>
+const PAIR='USDJPY', INVERSE_PAIR='JPYUSD', INVERSE_UNIT=100;
+const ENDPOINT_KEY='usdjpyLiveFeedEndpoint';
+let displayPair=PAIR, bars=[], latest=null, socket=null, reconnectTimer=null, heartbeatTimer=null;
+let smaOn=true, smaPeriod=20;
+
+const chart=LightweightCharts.createChart(document.getElementById('chart'),{
+  layout:{background:{color:'#ffffff'},textColor:'#334155'},
+  grid:{vertLines:{color:'#e2e8f0'},horzLines:{color:'#e2e8f0'}},
+  crosshair:{mode:LightweightCharts.CrosshairMode.Normal},
+  rightPriceScale:{borderColor:'#cbd5e1',scaleMargins:{top:.08,bottom:.08}},
+  timeScale:{borderColor:'#cbd5e1',timeVisible:true,secondsVisible:false,rightOffset:3},
+  localization:{locale:'ja-JP'},
+});
+const candles=chart.addCandlestickSeries({upColor:'#26a69a',downColor:'#ef5350',borderUpColor:'#26a69a',borderDownColor:'#ef5350',wickUpColor:'#26a69a',wickDownColor:'#ef5350',priceLineVisible:true,lastValueVisible:true,priceFormat:{type:'price',precision:3,minMove:.001}});
+const sma=chart.addLineSeries({color:'#06b6d4',lineWidth:2,priceLineVisible:false,lastValueVisible:true,title:'SMA20',priceFormat:{type:'price',precision:3,minMove:.001}});
+
+function baseEndpoint(){return document.getElementById('feedUrl').value.trim().replace(/\/+$/,'')}
+function showMessage(text,type=''){const el=document.getElementById('message');el.textContent=text;el.className='msg'+(type?' '+type:'')}
+function setConnection(state,text){const el=document.getElementById('connectionStatus');el.className='status'+(state?' '+state:'');document.getElementById('statusText').textContent=text}
+function formatPrice(value){return Number(value).toFixed(displayPair===INVERSE_PAIR?5:3)}
+function displayPrice(value){return displayPair===INVERSE_PAIR?INVERSE_UNIT/value:value}
+function displayBar(bar){if(displayPair===INVERSE_PAIR)return{time:bar.time,open:INVERSE_UNIT/bar.open,high:INVERSE_UNIT/bar.low,low:INVERSE_UNIT/bar.high,close:INVERSE_UNIT/bar.close};return{...bar}}
+function tickAge(){return latest?Date.now()-latest.ts:Infinity}
+function formatJst(ts){return new Intl.DateTimeFormat('ja-JP',{timeZone:'Asia/Tokyo',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:false}).format(new Date(ts))}
+
+function sortedBars(){return bars.slice().sort((a,b)=>a.time-b.time).filter((bar,index,array)=>index===0||bar.time!==array[index-1].time)}
+function updateSma(){
+  const source=sortedBars().map(displayBar), out=[];let sum=0;
+  for(let i=0;i<source.length;i++){sum+=source[i].close;if(i>=smaPeriod)sum-=source[i-smaPeriod].close;if(i>=smaPeriod-1)out.push({time:source[i].time,value:sum/smaPeriod})}
+  sma.setData(out);sma.applyOptions({visible:smaOn,title:`SMA${smaPeriod}`});
+  document.getElementById('smaState').textContent=`SMA${smaPeriod}｜過去${smaPeriod}本の終値平均`;
+}
+function renderAll(fit=false){
+  const data=sortedBars().map(displayBar);candles.setData(data);updateSma();
+  const precision=displayPair===INVERSE_PAIR?5:3,minMove=displayPair===INVERSE_PAIR?.00001:.001;
+  const priceFormat={type:'price',precision,minMove};candles.applyOptions({title:displayPair,priceFormat});sma.applyOptions({priceFormat});
+  updateStats();if(fit)followLatest();
+}
+function followLatest(){
+  const data=sortedBars();if(!data.length)return;
+  const minutes=Number(document.getElementById('windowSelect').value)||120;
+  const last=data[data.length-1].time;chart.timeScale().setVisibleRange({from:last-minutes*60,to:last+180});
+}
+function updateStats(){
+  const bidEl=document.getElementById('bidValue'),askEl=document.getElementById('askValue'),fresh=document.getElementById('freshness');
+  document.getElementById('bidLabel').textContent=`${displayPair} BID`;document.getElementById('askLabel').textContent=`${displayPair} ASK`;
+  document.getElementById('pageTitle').textContent=`リアルタイム　${displayPair}`;
+  if(!latest){bidEl.textContent=askEl.textContent='-';fresh.textContent='-';return}
+  const rawBid=displayPair===INVERSE_PAIR?INVERSE_UNIT/latest.ask:latest.bid;
+  const rawAsk=displayPair===INVERSE_PAIR?INVERSE_UNIT/latest.bid:latest.ask;
+  bidEl.textContent=formatPrice(rawBid);askEl.textContent=formatPrice(rawAsk);
+  const spreadPips=displayPair===INVERSE_PAIR?(rawAsk-rawBid)*100000:(latest.ask-latest.bid)*100;
+  document.getElementById('spreadValue').textContent=`${spreadPips.toFixed(1)} pips`;
+  document.getElementById('tickTime').textContent=formatJst(latest.ts);
+  const age=tickAge();fresh.textContent=age<10_000?'LIVE':age<60_000?`${Math.floor(age/1000)}秒遅延`:'停止';fresh.className='value '+(age<10_000?'fresh':'stale');
+}
+function mergeSnapshot(payload){
+  const incoming=Array.isArray(payload.bars)?payload.bars:[];if(payload.current_bar)incoming.push(payload.current_bar);
+  const map=new Map(bars.map(bar=>[bar.time,bar]));for(const bar of incoming)if(Number.isFinite(Number(bar.time)))map.set(Number(bar.time),{time:Number(bar.time),open:Number(bar.open),high:Number(bar.high),low:Number(bar.low),close:Number(bar.close)});
+  bars=Array.from(map.values()).sort((a,b)=>a.time-b.time).slice(-1800);if(payload.latest)latest=payload.latest;renderAll(true);
+}
+function ingestTick(tick){
+  latest={pair:PAIR,ts:Number(tick.ts),bid:Number(tick.bid),ask:Number(tick.ask)};if(!Number.isFinite(latest.bid)||!Number.isFinite(latest.ask))return;
+  const minute=Math.floor(latest.ts/60000)*60;let bar=bars.length?bars[bars.length-1]:null;
+  if(!bar||bar.time!==minute){bar={time:minute,open:latest.bid,high:latest.bid,low:latest.bid,close:latest.bid};bars.push(bar);if(bars.length>1800)bars.shift();}
+  else{bar.high=Math.max(bar.high,latest.bid);bar.low=Math.min(bar.low,latest.bid);bar.close=latest.bid;}
+  candles.update(displayBar(bar));updateSma();updateStats();
+}
+async function fetchSnapshot(endpoint){
+  const response=await fetch(`${endpoint}/snapshot?pair=${PAIR}`,{cache:'no-store'});if(!response.ok)throw new Error(`snapshot HTTP ${response.status}`);mergeSnapshot(await response.json());
+}
+function closeSocket(){if(reconnectTimer)clearTimeout(reconnectTimer);reconnectTimer=null;if(heartbeatTimer)clearInterval(heartbeatTimer);heartbeatTimer=null;if(socket){socket.onclose=null;socket.close();socket=null}}
+async function connect(){
+  const endpoint=baseEndpoint();const localTest=/^http:\/\/(127\.0\.0\.1|localhost)(:\d+)?$/i.test(endpoint);if(!/^https:\/\//i.test(endpoint)&&!localTest){showMessage('https:// で始まる配信URLを入力してください。','error');return}
+  localStorage.setItem(ENDPOINT_KEY,endpoint);closeSocket();setConnection('','接続中');showMessage('直近データを取得しています…');
+  try{await fetchSnapshot(endpoint)}catch(error){setConnection('error','取得失敗');showMessage(`配信URLへ接続できません: ${error.message}`,'error');scheduleReconnect();return}
+  const wsUrl=new URL(endpoint);wsUrl.protocol=wsUrl.protocol==='https:'?'wss:':'ws:';wsUrl.pathname=wsUrl.pathname.replace(/\/$/,'')+'/stream';wsUrl.searchParams.set('pair',PAIR);
+  socket=new WebSocket(wsUrl.toString());
+  socket.onopen=()=>{setConnection('live','LIVE');showMessage('リアルタイムレートを受信中です。');heartbeatTimer=setInterval(()=>{if(socket&&socket.readyState===WebSocket.OPEN)socket.send('ping')},20000)};
+  socket.onmessage=event=>{try{const data=JSON.parse(event.data);if(data.type==='tick')ingestTick(data)}catch{}}
+  socket.onerror=()=>setConnection('error','通信エラー');
+  socket.onclose=()=>{setConnection('error','再接続待ち');showMessage('接続が切れました。自動で再接続します。','warn');scheduleReconnect()};
+}
+function scheduleReconnect(){if(reconnectTimer||!baseEndpoint())return;reconnectTimer=setTimeout(()=>{reconnectTimer=null;connect()},5000)}
+
+document.getElementById('connectBtn').addEventListener('click',connect);
+document.getElementById('pairToggle').addEventListener('click',()=>{displayPair=displayPair===PAIR?INVERSE_PAIR:PAIR;const button=document.getElementById('pairToggle');button.textContent=`表示: ${displayPair}`;button.classList.toggle('jpyusd',displayPair===INVERSE_PAIR);renderAll(false)});
+document.getElementById('smaToggle').addEventListener('change',event=>{smaOn=event.target.checked;updateSma()});
+document.getElementById('smaPeriod').addEventListener('change',event=>{smaPeriod=Math.max(2,Math.min(500,Number(event.target.value)||20));event.target.value=smaPeriod;updateSma()});
+document.getElementById('windowSelect').addEventListener('change',followLatest);document.getElementById('followBtn').addEventListener('click',followLatest);
+new ResizeObserver(entries=>{for(const entry of entries)chart.applyOptions({width:entry.contentRect.width})}).observe(document.getElementById('chart'));
+setInterval(updateStats,1000);
+document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible'&&baseEndpoint()&&(!socket||socket.readyState>1))connect()});
+const params=new URLSearchParams(location.search),saved=params.get('feed')||localStorage.getItem(ENDPOINT_KEY)||'';document.getElementById('feedUrl').value=saved;if(saved)connect();
+</script>
+</body>
+</html>

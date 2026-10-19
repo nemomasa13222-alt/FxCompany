@@ -45,6 +45,8 @@ button.small{min-height:32px;padding:4px 12px;font-size:12px}
 .tradeHeadingCopy .sub{margin:3px 0 0}
 button.export{background:#0f766e;white-space:nowrap}
 button.export:hover{background:#115e59}
+.liveButton{background:#0f766e}
+.liveButton:hover{background:#115e59}
 .tradeBar{position:fixed;left:0;right:0;bottom:0;z-index:1000;background:#fff;box-shadow:0 -2px 10px rgba(0,0,0,.12);display:none}
 .tradeBar.show{display:block}
 .tradeBarInner{max-width:1100px;margin:0 auto;padding:10px 20px calc(10px + env(safe-area-inset-bottom));display:flex;align-items:center;gap:10px}
@@ -123,6 +125,7 @@ input[type=range]{flex:1;min-width:150px;min-height:32px}
       <label>終了 <input type="datetime-local" id="endInput"></label>
       <button id="loadBtn">読み込む</button>
       <button id="latestBtn" class="secondary">最新日を読み込む</button>
+      <button id="livePageBtn" class="liveButton" type="button">● リアルタイムを見る</button>
       <button id="copyUrlBtn" class="secondary small" type="button" disabled>🔗 URLをコピー</button>
     </div>
     <div class="msg" id="statusMsg"></div>
@@ -1381,6 +1384,7 @@ document.getElementById('playBtn').addEventListener('click', () => {
 });
 
 document.getElementById('pairToggleBtn').addEventListener('click', toggleDisplayPair);
+document.getElementById('livePageBtn').addEventListener('click', () => { window.location.href = 'live.html'; });
 
 document.getElementById('resetBtn').addEventListener('click', () => {
   playing = false;
