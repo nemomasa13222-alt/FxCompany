@@ -36,7 +36,7 @@ button,.buttonLink{display:inline-flex;align-items:center;justify-content:center
       <input type="url" id="feedUrl" placeholder="https://usdjpy-live-feed.xxxxx.workers.dev" autocomplete="url" spellcheck="false">
       <button type="button" id="connectBtn">接続</button>
     </div>
-    <div id="message" class="msg">初回だけ配信URLを入力してください。この端末内に保存します。</div>
+    <div id="message" class="msg">Cloudflareのリアルタイム配信へ接続します。</div>
   </section>
 
   <section class="card">
@@ -75,6 +75,7 @@ button,.buttonLink{display:inline-flex;align-items:center;justify-content:center
 <script>
 const PAIR='USDJPY', INVERSE_PAIR='JPYUSD', INVERSE_UNIT=100;
 const ENDPOINT_KEY='usdjpyLiveFeedEndpoint';
+const DEFAULT_ENDPOINT='https://usdjpy-live-feed.nemomasa01222.workers.dev';
 let displayPair=PAIR, bars=[], latest=null, socket=null, reconnectTimer=null, heartbeatTimer=null;
 let smaOn=true, smaPeriod=20;
 
@@ -166,7 +167,7 @@ document.getElementById('windowSelect').addEventListener('change',followLatest);
 new ResizeObserver(entries=>{for(const entry of entries)chart.applyOptions({width:entry.contentRect.width})}).observe(document.getElementById('chart'));
 setInterval(updateStats,1000);
 document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible'&&baseEndpoint()&&(!socket||socket.readyState>1))connect()});
-const params=new URLSearchParams(location.search),saved=params.get('feed')||localStorage.getItem(ENDPOINT_KEY)||'';document.getElementById('feedUrl').value=saved;if(saved)connect();
+const params=new URLSearchParams(location.search),saved=params.get('feed')||localStorage.getItem(ENDPOINT_KEY)||DEFAULT_ENDPOINT;document.getElementById('feedUrl').value=saved;connect();
 </script>
 </body>
 </html>
