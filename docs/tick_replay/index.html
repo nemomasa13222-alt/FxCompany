@@ -903,9 +903,16 @@ async function loadRange() {
       pendingEventReplayEpoch = null;
       return;
     }
-    const warn = merged.length > SOFT_CAP
-      ? `注意: ${merged.length.toLocaleString()}件と多めです。動作が重い場合は期間を狭めてください。` : '';
-    setStatus(warn, warn ? 'warn' : '');
+    const reconstructed = dayPayloads.some(p => p.synthetic_intraminute);
+    const notices = [];
+    if (merged.length > SOFT_CAP) {
+      notices.push(`注意: ${merged.length.toLocaleString()}件と多めです。動作が重い場合は期間を狭めてください。`);
+    }
+    if (reconstructed) {
+      notices.push('この期間は実1分足OHLCを分内4点へ再構成した区間を含みます（実ティックではありません）。');
+    }
+    const notice = notices.join(' ');
+    setStatus(notice, notice ? 'warn' : '');
 
     if (requestId !== loadRequestId) return;
     buildAndShow(merged, startStr, endStr, warmup);

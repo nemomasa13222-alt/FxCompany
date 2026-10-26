@@ -13,7 +13,7 @@ import sys; sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 import argparse
 import json
 from pathlib import Path
-from datetime import timedelta
+from datetime import date, timedelta
 
 import pandas as pd
 
@@ -27,6 +27,10 @@ def main():
     p = argparse.ArgumentParser(description="ティックデータを日別JSONに分割書き出し（GitHub Pages公開用）")
     p.add_argument("--year", type=int, required=True, help="対象年（例: 2026）")
     p.add_argument("--force", action="store_true", help="既存の日別JSONも上書きする")
+    p.add_argument(
+        "--through-jst",
+        help="このJST日付までを書き出す（YYYY-MM-DD）。省略時は年次データの全日付。",
+    )
     args = p.parse_args()
 
     src = TICK_DIR / f"{PAIR}_tick_{args.year}.parquet"
@@ -37,6 +41,12 @@ def main():
     print(f"読み込み中: {src}")
     df = pd.read_parquet(src)
     jst_date = (df.index + timedelta(hours=9)).date
+    if args.through_jst:
+        through = date.fromisoformat(args.through_jst)
+        keep = jst_date <= through
+        df = df.loc[keep]
+        jst_date = jst_date[keep]
+        print(f"書き出し上限（JST）: {through}")
 
     OUT_DIR.mkdir(parents=True, exist_ok=True)
     manifest_path = OUT_DIR / "manifest.json"
