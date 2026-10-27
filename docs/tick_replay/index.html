@@ -903,7 +903,10 @@ async function loadRange() {
       pendingEventReplayEpoch = null;
       return;
     }
-    const reconstructed = dayPayloads.some(p => p.synthetic_intraminute);
+    // SMAウォームアップ用の前営業日は画面の表示対象ではないため、
+    // そのデータ品質を現在期間の注意表示へ混ぜない。
+    const visiblePayloads = warmupDate ? dayPayloads.slice(1) : dayPayloads;
+    const reconstructed = visiblePayloads.some(p => p.synthetic_intraminute);
     const notices = [];
     if (merged.length > SOFT_CAP) {
       notices.push(`注意: ${merged.length.toLocaleString()}件と多めです。動作が重い場合は期間を狭めてください。`);
