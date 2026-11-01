@@ -80,10 +80,12 @@ input[type=range]{flex:1;min-width:150px;min-height:32px}
 .practiceHead{display:flex;align-items:flex-start;justify-content:space-between;gap:14px}
 .practiceHead h2{font-size:16px;margin:0 0 3px;color:#172033}
 .practiceHead .sub{margin:0}
-.practiceName{display:grid;grid-template-columns:minmax(190px,1fr) auto auto;gap:8px;margin-top:12px}
+.practiceName{display:grid;grid-template-columns:minmax(190px,1fr) auto auto auto;gap:8px;margin-top:12px}
 .practiceTarget{display:flex;align-items:center;min-width:0;padding:9px 11px;border:1px solid #cbd5e1;border-radius:8px;background:#f8fafc;color:#334155;font-size:13px;font-weight:600;line-height:1.45}
 .practiceTarget.isEmpty{color:#94a3b8;font-weight:500}
 .practiceName button{font-size:13px;padding:8px 12px;min-height:40px}
+.formalSaveBtn{background:#0f766e;box-shadow:0 4px 12px rgba(15,118,110,.18)}
+.formalSaveBtn:disabled{background:#94a3b8;box-shadow:none}
 .compareSelectors{display:grid;grid-template-columns:1fr 1fr auto;gap:8px;align-items:end;margin-top:12px}
 .compareSelectors label{display:flex;flex-direction:column;gap:4px;font-size:11px;color:#64748b}
 .compareSelectors select{width:100%;min-width:0;font-size:13px}
@@ -260,10 +262,11 @@ input[type=range]{flex:1;min-width:150px;min-height:32px}
       </div>
       <div class="practiceName">
         <div class="practiceTarget isEmpty" id="practiceTargetLabel">先に指標と該当回を選び、「この指標を表示」を押してください</div>
-        <button id="savePracticeBtn" type="button" disabled>この指標の今回を保存</button>
+        <button id="savePracticeBtn" class="secondary" type="button" disabled>今回を一時保存（この端末）</button>
+        <button id="formalSaveBtn" class="formalSaveBtn" type="button" disabled>正式保存（オンラインDB）</button>
         <button id="restartPracticeBtn" class="secondary" type="button">履歴を消して最初から</button>
       </div>
-      <div class="savedHint" id="practiceHint">比較欄には、選択中の指標・発表日時に保存した回だけを表示します。保存後は直近2回を自動選択します。</div>
+      <div class="savedHint" id="practiceHint">正式保存はスマホ・PC共通です。一時保存はこの端末のブラウザ内だけに残ります。</div>
       <div class="compareSelectors">
         <label>前の回<select id="compareRunA"><option value="">選択...</option></select></label>
         <label>後の回<select id="compareRunB"><option value="">選択...</option></select></label>
@@ -323,10 +326,13 @@ let tradeHistory = [];
 const HISTORY_KEY = 'tickReplayTradeHistory_' + PAIR;
 const SESSION_KEY = 'tickReplaySession_' + PAIR;
 const PRACTICE_RUNS_KEY = 'tickReplayPracticeRuns_' + PAIR;
+const DEVICE_TOKEN_KEY = 'tickReplayDeviceToken_v1';
+const RESULTS_API_ENDPOINT = 'https://tick-replay-results-api.nemomasa01222.workers.dev';
 let practiceRuns = [];
 let publishedPracticeRuns = [];
 let publishedScenarios = [];
 let activePublishedScenarioKey = '';
+let formalSaveInProgress = false;
 let showCurrentMarkers = false;
 let showComparedMarkers = false;
 let renderedPracticeGroupKey = '';
@@ -410,15 +416,27 @@ async function loadPublishedPracticeRuns() {
   const button = document.getElementById('loadPublishedScenarioBtn');
   const meta = document.getElementById('publishedArchiveMeta');
   try {
-    const res = await fetch('data/practice_results.json', { cache: 'no-store' });
-    if (!res.ok) throw new Error('公開成績データ取得失敗');
-    const payload = await res.json();
+    let payload = null;
+    let sourceLabel = 'オンラインDB';
+    try {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 8000);
+      const online = await fetch(`${RESULTS_API_ENDPOINT}/api/results`, { cache: 'no-store', signal: controller.signal });
+      clearTimeout(timeout);
+      if (!online.ok) throw new Error('オンラインDB取得失敗');
+      payload = await online.json();
+    } catch (onlineError) {
+      const fallback = await fetch('data/practice_results.json', { cache: 'no-store' });
+      if (!fallback.ok) throw new Error('公開成績データ取得失敗');
+      payload = await fallback.json();
+      sourceLabel = 'バックアップ';
+    }
     publishedPracticeRuns = Array.isArray(payload.runs)
       ? payload.runs.filter(run => run && run.id && Array.isArray(run.trades))
       : [];
     publishedScenarios = Array.isArray(payload.scenarios) ? payload.scenarios : [];
     renderPublishedScenarioOptions();
-    if (meta) meta.textContent = `過去 ${publishedScenarios.length}場面・${publishedPracticeRuns.length}回・${Number(payload.trade_count || 0).toLocaleString()}取引を収録`;
+    if (meta) meta.textContent = `${sourceLabel}｜過去 ${publishedScenarios.length}場面・${publishedPracticeRuns.length}回・${Number(payload.trade_count || 0).toLocaleString()}取引を収録`;
     renderPracticeControls();
   } catch (error) {
     publishedPracticeRuns = [];
@@ -498,7 +516,8 @@ function comparisonPracticeDescriptor() {
 function updatePracticeTarget() {
   const target = document.getElementById('practiceTargetLabel');
   const saveBtn = document.getElementById('savePracticeBtn');
-  if (!target || !saveBtn) return;
+  const formalBtn = document.getElementById('formalSaveBtn');
+  if (!target || !saveBtn || !formalBtn) return;
   const selected = selectedEventContext();
   const descriptor = publishedScenarioDescriptor() || practiceDescriptor(selected || activeEventContext);
   const activeDescriptor = practiceDescriptor(activeEventContext);
@@ -511,6 +530,7 @@ function updatePracticeTarget() {
     ? `${descriptor.label}${loaded ? '' : '（未読み込み）'}${activePublishedScenarioKey ? '｜保存DB' : ''}`
     : '先に指標と該当回を選び、「この指標を表示」を押してください';
   saveBtn.disabled = !loaded || !descriptor.event;
+  formalBtn.disabled = formalSaveInProgress || !loaded || !descriptor.event;
 }
 
 function runsForCurrentPractice() {
@@ -523,7 +543,7 @@ function runsForCurrentPractice() {
 
 function runOptionText(run) {
   const total = Number(run.summary?.total_pips || 0);
-  const source = run.source === 'published_database' ? '｜保存DB' : '';
+  const source = ['published_database', 'online_database'].includes(run.source) ? '｜保存DB' : '';
   return `${run.attempt}回目｜${run.trades.length}取引｜${signedPips(total)}p${source}`;
 }
 
@@ -648,6 +668,105 @@ function saveCurrentPractice() {
   savePracticeRuns();
   renderPracticeControls(true);
   setStatus(`${descriptor.label}の${attempt}回目を保存しました`, 'info');
+}
+
+function currentFormalSavePayload() {
+  const trades = visibleTrades().sort((a, b) => a.entryTime - b.entryTime).map(trade => ({
+    dir: trade.dir,
+    entryTime: Number(trade.entryTime),
+    entryPrice: Number(trade.entryPrice),
+    exitTime: Number(trade.exitTime),
+    exitPrice: Number(trade.exitPrice),
+    pips: Number(trade.pips),
+  }));
+  if (!trades.length) {
+    setStatus('正式保存できる決済済み取引がありません', 'warn');
+    return null;
+  }
+  if (position) {
+    setStatus('保有中のポジションを決済してから正式保存してください', 'warn');
+    return null;
+  }
+  const descriptor = practiceDescriptor(activeEventContext);
+  const selectedDescriptor = practiceDescriptor(selectedEventContext());
+  if (!descriptor) {
+    setStatus('先に指標と該当回を選び、「この指標を表示」を押してください', 'warn');
+    return null;
+  }
+  if (selectedDescriptor && selectedDescriptor.key !== descriptor.key) {
+    setStatus('選択中の指標を読み込んでから正式保存してください', 'warn');
+    return null;
+  }
+  return {
+    pair: PAIR,
+    start: descriptor.start,
+    end: descriptor.end,
+    event: descriptor.event,
+    indicators: { smaOn, smaPeriod },
+    trades,
+    clientCreatedAt: Date.now(),
+  };
+}
+
+async function registerThisDevice() {
+  const code = prompt('初回登録コードを入力してください。入力はこの端末で最初の1回だけです。');
+  if (code == null) return '';
+  const response = await fetch(`${RESULTS_API_ENDPOINT}/api/register-device`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      code: String(code).trim(),
+      label: /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent) ? 'スマホ' : 'PC',
+    }),
+  });
+  const result = await response.json().catch(() => ({}));
+  if (!response.ok || !result.token) throw new Error(result.error || '端末の初回登録に失敗しました');
+  localStorage.setItem(DEVICE_TOKEN_KEY, result.token);
+  return result.token;
+}
+
+async function formalSaveCurrentPractice() {
+  if (formalSaveInProgress) return;
+  const payload = currentFormalSavePayload();
+  if (!payload) return;
+  const button = document.getElementById('formalSaveBtn');
+  formalSaveInProgress = true;
+  button.disabled = true;
+  button.textContent = '正式保存中...';
+  try {
+    let token = localStorage.getItem(DEVICE_TOKEN_KEY) || '';
+    if (!token) token = await registerThisDevice();
+    if (!token) return;
+    let response = await fetch(`${RESULTS_API_ENDPOINT}/api/reports`, {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    if (response.status === 401) {
+      localStorage.removeItem(DEVICE_TOKEN_KEY);
+      token = await registerThisDevice();
+      if (!token) return;
+      response = await fetch(`${RESULTS_API_ENDPOINT}/api/reports`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+    }
+    const result = await response.json().catch(() => ({}));
+    if (!response.ok || !result.ok) throw new Error(result.error || '正式保存に失敗しました');
+    await loadPublishedPracticeRuns();
+    renderPracticeControls(true);
+    const message = result.duplicate
+      ? `同じ結果はすでに${result.run.attempt}回目として正式保存されています`
+      : `${result.run.label}の${result.run.attempt}回目を正式保存しました`;
+    setStatus(message, 'info');
+  } catch (error) {
+    setStatus(error instanceof Error ? error.message : '正式保存に失敗しました', 'error');
+  } finally {
+    formalSaveInProgress = false;
+    button.textContent = '正式保存（オンラインDB）';
+    updatePracticeTarget();
+  }
 }
 
 function clearCurrentPracticeTrades() {
@@ -1866,6 +1985,7 @@ document.getElementById('barSellBtn').addEventListener('click', () => openPositi
 document.getElementById('barCloseBtn').addEventListener('click', closePosition);
 document.getElementById('exportReportBtn').addEventListener('click', exportAnalysisReport);
 document.getElementById('savePracticeBtn').addEventListener('click', saveCurrentPractice);
+document.getElementById('formalSaveBtn').addEventListener('click', formalSaveCurrentPractice);
 document.getElementById('restartPracticeBtn').addEventListener('click', clearCurrentPracticeTrades);
 document.getElementById('compareRunA').addEventListener('change', renderPracticeComparison);
 document.getElementById('compareRunB').addEventListener('change', renderPracticeComparison);
