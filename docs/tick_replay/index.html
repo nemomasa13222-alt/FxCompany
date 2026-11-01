@@ -250,7 +250,7 @@ input[type=range]{flex:1;min-width:150px;min-height:32px}
     </div>
     <section class="practicePanel" id="practicePanel">
       <div class="practiceHead">
-        <div><h2>選択中の指標を保存して比較</h2><div class="sub">指標の発表回ごとに、1回目・2回目・3回目…を自動整理します</div></div>
+        <div><h2>デモ結果を保存して比較</h2><div class="sub">指標の発表回または通常時間帯ごとに、1回目・2回目・3回目…を自動整理します</div></div>
         <div class="sub" id="savedRunCount">保存 0回</div>
       </div>
       <div class="archivePicker">
@@ -261,7 +261,7 @@ input[type=range]{flex:1;min-width:150px;min-height:32px}
         <div class="archiveMeta" id="publishedArchiveMeta">保存済みの成績を確認中...</div>
       </div>
       <div class="practiceName">
-        <div class="practiceTarget isEmpty" id="practiceTargetLabel">先に指標と該当回を選び、「この指標を表示」を押してください</div>
+        <div class="practiceTarget isEmpty" id="practiceTargetLabel">指標を表示するか、開始・終了から通常時間帯を読み込んでください</div>
         <button id="savePracticeBtn" class="secondary" type="button" disabled>今回を一時保存（この端末）</button>
         <button id="formalSaveBtn" class="formalSaveBtn" type="button" disabled>正式保存（オンラインDB）</button>
         <button id="restartPracticeBtn" class="secondary" type="button">履歴を消して最初から</button>
@@ -311,6 +311,8 @@ let pendingEventReplayEpoch = null;
 let activeEventMarker = null;
 let pendingEventContext = null;
 let activeEventContext = null;
+let pendingNormalContext = null;
+let activeNormalContext = null;
 let loadRequestId = 0;
 let autoScaleOn = true;
 let smaOn = true;
@@ -495,10 +497,19 @@ function selectedEventContext() {
   };
 }
 
+function sessionClockLabel(value) {
+  const time = String(value || '').split('T')[1] || '';
+  const [hourText, minuteText] = time.split(':');
+  const hour = Number(hourText);
+  const minute = Number(minuteText);
+  if (!Number.isFinite(hour) || !Number.isFinite(minute)) return time;
+  return minute === 0 ? `${hour}時` : `${hour}時${minute}分`;
+}
+
 function practiceDescriptor(context) {
   if (!context?.name || !context?.jst) return null;
-  const start = document.getElementById('startInput').value;
-  const end = document.getElementById('endInput').value;
+  const start = context.start || document.getElementById('startInput').value;
+  const end = context.end || document.getElementById('endInput').value;
   const eventDate = context.jst.replace('T', ' ');
   return {
     key: `event|${context.name}|${context.jst}`,
@@ -509,8 +520,24 @@ function practiceDescriptor(context) {
   };
 }
 
+function normalPracticeDescriptor(context) {
+  if (!context?.start || !context?.end) return null;
+  const sessionDate = context.start.slice(0, 10);
+  return {
+    key: `published-range|${sessionDate}|${context.start}|${context.end}`,
+    label: `${sessionClockLabel(context.start)}〜${sessionClockLabel(context.end)} ${sessionDate}`,
+    event: null,
+    start: context.start,
+    end: context.end,
+  };
+}
+
+function activePracticeDescriptor() {
+  return practiceDescriptor(activeEventContext) || normalPracticeDescriptor(activeNormalContext);
+}
+
 function comparisonPracticeDescriptor() {
-  return publishedScenarioDescriptor() || practiceDescriptor(selectedEventContext() || activeEventContext);
+  return publishedScenarioDescriptor() || practiceDescriptor(selectedEventContext()) || activePracticeDescriptor();
 }
 
 function updatePracticeTarget() {
@@ -519,8 +546,8 @@ function updatePracticeTarget() {
   const formalBtn = document.getElementById('formalSaveBtn');
   if (!target || !saveBtn || !formalBtn) return;
   const selected = selectedEventContext();
-  const descriptor = publishedScenarioDescriptor() || practiceDescriptor(selected || activeEventContext);
-  const activeDescriptor = practiceDescriptor(activeEventContext);
+  const descriptor = publishedScenarioDescriptor() || practiceDescriptor(selected) || activePracticeDescriptor();
+  const activeDescriptor = activePracticeDescriptor();
   const loaded = Boolean(descriptor && (
     descriptor.key === activePublishedScenarioKey ||
     (activeDescriptor && descriptor.key === activeDescriptor.key)
@@ -528,9 +555,9 @@ function updatePracticeTarget() {
   target.classList.toggle('isEmpty', !descriptor);
   target.textContent = descriptor
     ? `${descriptor.label}${loaded ? '' : '（未読み込み）'}${activePublishedScenarioKey ? '｜保存DB' : ''}`
-    : '先に指標と該当回を選び、「この指標を表示」を押してください';
-  saveBtn.disabled = !loaded || !descriptor.event;
-  formalBtn.disabled = formalSaveInProgress || !loaded || !descriptor.event;
+    : '先に指標または通常時間帯のデモを読み込んでください';
+  saveBtn.disabled = !loaded;
+  formalBtn.disabled = formalSaveInProgress || !loaded;
 }
 
 function runsForCurrentPractice() {
@@ -572,7 +599,7 @@ function renderPracticeControls(preferLatest = false) {
     if (!selectA.value && runs.length >= 2) selectA.value = runs[0].id;
     if (!selectB.value && runs.length) selectB.value = runs[runs.length - 1].id;
   }
-  document.getElementById('savedRunCount').textContent = descriptor ? `この指標：保存 ${runs.length}回` : '指標未選択';
+  document.getElementById('savedRunCount').textContent = descriptor ? `この場面：保存 ${runs.length}回` : '場面未選択';
   updatePracticeTarget();
   renderPracticeComparison();
 }
@@ -639,10 +666,10 @@ function saveCurrentPractice() {
     setStatus('保有中のポジションを決済してから保存してください', 'warn');
     return;
   }
-  const descriptor = practiceDescriptor(activeEventContext);
+  const descriptor = activePracticeDescriptor();
   const selectedDescriptor = practiceDescriptor(selectedEventContext());
   if (!descriptor) {
-    setStatus('先に指標と該当回を選び、「この指標を表示」を押してください', 'warn');
+    setStatus('先に指標または通常時間帯のデモを読み込んでください', 'warn');
     return;
   }
   if (selectedDescriptor && selectedDescriptor.key !== descriptor.key) {
@@ -687,10 +714,10 @@ function currentFormalSavePayload() {
     setStatus('保有中のポジションを決済してから正式保存してください', 'warn');
     return null;
   }
-  const descriptor = practiceDescriptor(activeEventContext);
+  const descriptor = activePracticeDescriptor();
   const selectedDescriptor = practiceDescriptor(selectedEventContext());
   if (!descriptor) {
-    setStatus('先に指標と該当回を選び、「この指標を表示」を押してください', 'warn');
+    setStatus('先に指標または通常時間帯のデモを読み込んでください', 'warn');
     return null;
   }
   if (selectedDescriptor && selectedDescriptor.key !== descriptor.key) {
@@ -830,6 +857,7 @@ function saveReplayState(force = false) {
     visibleRange,
     eventMarker: activeEventMarker ? { ...activeEventMarker } : null,
     eventContext: activeEventContext ? { ...activeEventContext } : null,
+    normalContext: activeNormalContext ? { ...activeNormalContext } : null,
   };
   try { localStorage.setItem(SESSION_KEY, JSON.stringify(state)); } catch (e) {}
 }
@@ -858,7 +886,9 @@ function restoreReplayState(state, startStr, endStr) {
   if (!state || state.start !== startStr || state.end !== endStr || !Number.isFinite(state.replayEpoch)) return false;
   const restoreEpoch = Math.max(TICKS[0].t, Math.min(TICKS[TICKS.length - 1].t, state.replayEpoch));
   activeEventMarker = state.eventMarker || activeEventMarker;
-  activeEventContext = state.eventContext || activeEventContext;
+  activeEventContext = state.eventContext ? { ...state.eventContext } : null;
+  if (activeEventContext) activeNormalContext = null;
+  else if (state.normalContext) activeNormalContext = { ...state.normalContext };
   seekTo(tickIndexAtOrBefore(restoreEpoch));
 
   const savedPosition = state.position;
@@ -1341,6 +1371,9 @@ async function loadRange() {
   const startEpoch = jstInputToEpoch(startStr);
   const endEpoch = jstInputToEpoch(endStr);
   if (endEpoch <= startEpoch) { setStatus('終了は開始より後にしてください', 'error'); return; }
+  if (!pendingEventContext && !pendingEventMarker && !pendingNormalContext) {
+    pendingNormalContext = { start: startStr, end: endStr };
+  }
 
   const visibleDates = listJstDates(startStr, endStr).filter(d => manifest.dates.includes(d));
   if (visibleDates.length === 0) {
@@ -1348,6 +1381,7 @@ async function loadRange() {
     pendingEventMarker = null;
     pendingEventReplayEpoch = null;
     pendingEventContext = null;
+    pendingNormalContext = null;
     return;
   }
   const requestId = ++loadRequestId;
@@ -1389,6 +1423,7 @@ async function loadRange() {
       pendingEventMarker = null;
       pendingEventReplayEpoch = null;
       pendingEventContext = null;
+      pendingNormalContext = null;
       return;
     }
     if (merged.length > HARD_CAP) {
@@ -1396,6 +1431,7 @@ async function loadRange() {
       pendingEventMarker = null;
       pendingEventReplayEpoch = null;
       pendingEventContext = null;
+      pendingNormalContext = null;
       return;
     }
     // SMAウォームアップ用の前営業日は画面の表示対象ではないため、
@@ -1422,6 +1458,7 @@ async function loadRange() {
     pendingEventMarker = null;
     pendingEventReplayEpoch = null;
     pendingEventContext = null;
+    pendingNormalContext = null;
   } finally {
     if (requestId === loadRequestId) {
       document.getElementById('loadBtn').disabled = false;
@@ -1508,12 +1545,15 @@ function buildAndShow(ticks, startStr, endStr, warmupTicks) {
       text: pendingEventMarker.label,
     };
     activeEventContext = pendingEventContext ? { ...pendingEventContext } : null;
+    activeNormalContext = null;
     pendingEventMarker = null;
     pendingEventContext = null;
   } else {
     activeEventMarker = null;
     activeEventContext = null;
+    activeNormalContext = pendingNormalContext ? { ...pendingNormalContext } : null;
   }
+  pendingNormalContext = null;
 
   playing = false;
   document.getElementById('playBtn').textContent = '▶ 再生';
@@ -1884,12 +1924,14 @@ async function loadPublishedScenario() {
       epoch: Number(scenario.event.epoch),
       label: `${scenario.event.name} ${scenario.event.period || ''}`.trim(),
     };
-    pendingEventContext = { ...scenario.event };
+    pendingEventContext = { ...scenario.event, start: scenario.start, end: scenario.end };
+    pendingNormalContext = null;
   } else {
     document.getElementById('eventTypeSel').value = '';
     populateEventOccurrences('');
     pendingEventMarker = null;
     pendingEventContext = null;
+    pendingNormalContext = { start: scenario.start, end: scenario.end };
   }
   pendingEventReplayEpoch = null;
   document.getElementById('startInput').value = scenario.start;
@@ -1921,15 +1963,18 @@ document.getElementById('eventLoadBtn').addEventListener('click', () => {
   const evEpoch = jstInputToEpoch(jstStr);
   const matched = EVENTS.find(ev => ev.name === name && ev.jst === jstStr);
   pendingEventMarker = { epoch: evEpoch, label: matched ? `${matched.name} ${matched.period}` : name };
+  pendingEventReplayEpoch = evEpoch;
+  const startStr = epochToJstInputStr(evEpoch - 30 * 60000);
+  const endStr = epochToJstInputStr(evEpoch + 90 * 60000);
   pendingEventContext = {
     name,
     period: matched?.period || '',
     jst: jstStr,
     epoch: evEpoch,
+    start: startStr,
+    end: endStr,
   };
-  pendingEventReplayEpoch = evEpoch;
-  const startStr = epochToJstInputStr(evEpoch - 30 * 60000);
-  const endStr = epochToJstInputStr(evEpoch + 90 * 60000);
+  pendingNormalContext = null;
   document.getElementById('startInput').value = startStr;
   document.getElementById('endInput').value = endStr;
   syncRangeUrl(startStr, endStr);
@@ -1938,15 +1983,33 @@ document.getElementById('eventLoadBtn').addEventListener('click', () => {
 
 document.getElementById('loadBtn').addEventListener('click', () => {
   clearPublishedScenarioSelection();
+  document.getElementById('eventTypeSel').value = '';
+  populateEventOccurrences('');
+  pendingEventMarker = null;
+  pendingEventReplayEpoch = null;
+  pendingEventContext = null;
+  pendingNormalContext = {
+    start: document.getElementById('startInput').value,
+    end: document.getElementById('endInput').value,
+  };
   renderPracticeControls();
   loadRange();
 });
 document.getElementById('latestBtn').addEventListener('click', () => {
   if (!manifest) return;
   clearPublishedScenarioSelection();
-  renderPracticeControls();
   document.getElementById('startInput').value = manifest.max + 'T00:00';
   document.getElementById('endInput').value = manifest.max + 'T23:59';
+  document.getElementById('eventTypeSel').value = '';
+  populateEventOccurrences('');
+  pendingEventMarker = null;
+  pendingEventReplayEpoch = null;
+  pendingEventContext = null;
+  pendingNormalContext = {
+    start: document.getElementById('startInput').value,
+    end: document.getElementById('endInput').value,
+  };
+  renderPracticeControls();
   loadRange();
 });
 
