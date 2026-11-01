@@ -99,6 +99,11 @@ input[type=range]{flex:1;min-width:150px;min-height:32px}
 .entryList ol{margin:0;padding-left:20px;font-size:11px;color:#475569;line-height:1.7}
 .entryList .buyText{color:#15803d;font-weight:700}.entryList .sellText{color:#dc2626;font-weight:700}
 .savedHint{margin-top:7px;font-size:11px;color:#64748b}
+.archivePicker{display:grid;grid-template-columns:minmax(220px,1fr) auto;gap:8px;align-items:end;margin-top:12px;padding:11px;border:1px solid #cfe1eb;border-radius:9px;background:#f2f8fb}
+.archivePicker label{display:flex;flex-direction:column;gap:4px;font-size:11px;color:#526779}
+.archivePicker select{width:100%;min-width:0;font-size:13px;background:#fff}
+.archivePicker button{min-height:40px;font-size:13px;padding:8px 12px}
+.archiveMeta{grid-column:1/-1;font-size:11px;color:#64748b}
 
 @media (max-width: 640px) {
   .wrap{padding:10px}
@@ -128,7 +133,7 @@ input[type=range]{flex:1;min-width:150px;min-height:32px}
   .tradeBarInner button{padding:10px 4px;font-size:13px;min-height:42px}
   .tradeHeading{align-items:stretch;flex-direction:column}
   #exportReportBtn{width:100%}
-  .practiceHead{flex-direction:column}.practiceName{grid-template-columns:1fr}.compareSelectors{grid-template-columns:1fr}.entryLists{grid-template-columns:1fr}
+  .practiceHead{flex-direction:column}.practiceName{grid-template-columns:1fr}.compareSelectors{grid-template-columns:1fr}.entryLists{grid-template-columns:1fr}.archivePicker{grid-template-columns:1fr}
   body.has-tradebar{padding-bottom:78px}
 }
 </style>
@@ -246,6 +251,13 @@ input[type=range]{flex:1;min-width:150px;min-height:32px}
         <div><h2>選択中の指標を保存して比較</h2><div class="sub">指標の発表回ごとに、1回目・2回目・3回目…を自動整理します</div></div>
         <div class="sub" id="savedRunCount">保存 0回</div>
       </div>
+      <div class="archivePicker">
+        <label>過去デモ成績
+          <select id="publishedScenarioSel"><option value="">読み込み中...</option></select>
+        </label>
+        <button id="loadPublishedScenarioBtn" class="secondary" type="button" disabled>この過去デモを表示</button>
+        <div class="archiveMeta" id="publishedArchiveMeta">保存済みの成績を確認中...</div>
+      </div>
       <div class="practiceName">
         <div class="practiceTarget isEmpty" id="practiceTargetLabel">先に指標と該当回を選び、「この指標を表示」を押してください</div>
         <button id="savePracticeBtn" type="button" disabled>この指標の今回を保存</button>
@@ -312,6 +324,9 @@ const HISTORY_KEY = 'tickReplayTradeHistory_' + PAIR;
 const SESSION_KEY = 'tickReplaySession_' + PAIR;
 const PRACTICE_RUNS_KEY = 'tickReplayPracticeRuns_' + PAIR;
 let practiceRuns = [];
+let publishedPracticeRuns = [];
+let publishedScenarios = [];
+let activePublishedScenarioKey = '';
 let showCurrentMarkers = false;
 let showComparedMarkers = false;
 let renderedPracticeGroupKey = '';
@@ -386,6 +401,69 @@ function savePracticeRuns() {
   try { localStorage.setItem(PRACTICE_RUNS_KEY, JSON.stringify(practiceRuns.slice(-200))); } catch (e) {}
 }
 
+function allPracticeRuns() {
+  return [...publishedPracticeRuns, ...practiceRuns];
+}
+
+async function loadPublishedPracticeRuns() {
+  const select = document.getElementById('publishedScenarioSel');
+  const button = document.getElementById('loadPublishedScenarioBtn');
+  const meta = document.getElementById('publishedArchiveMeta');
+  try {
+    const res = await fetch('data/practice_results.json', { cache: 'no-store' });
+    if (!res.ok) throw new Error('公開成績データ取得失敗');
+    const payload = await res.json();
+    publishedPracticeRuns = Array.isArray(payload.runs)
+      ? payload.runs.filter(run => run && run.id && Array.isArray(run.trades))
+      : [];
+    publishedScenarios = Array.isArray(payload.scenarios) ? payload.scenarios : [];
+    renderPublishedScenarioOptions();
+    if (meta) meta.textContent = `過去 ${publishedScenarios.length}場面・${publishedPracticeRuns.length}回・${Number(payload.trade_count || 0).toLocaleString()}取引を収録`;
+    renderPracticeControls();
+  } catch (error) {
+    publishedPracticeRuns = [];
+    publishedScenarios = [];
+    if (select) select.innerHTML = '<option value="">過去デモを取得できません</option>';
+    if (button) button.disabled = true;
+    if (meta) meta.textContent = '過去デモ成績の取得に失敗しました。ページを再読み込みしてください。';
+  }
+}
+
+function renderPublishedScenarioOptions() {
+  const select = document.getElementById('publishedScenarioSel');
+  const button = document.getElementById('loadPublishedScenarioBtn');
+  if (!select) return;
+  select.innerHTML = '<option value="">場面を選択...</option>';
+  const labels = { FOMC: 'FOMC', NFP: '雇用統計', CPI: 'CPI', PPI: 'PPI', session_21_24: '21時〜0時' };
+  for (const type of ['FOMC', 'NFP', 'CPI', 'PPI', 'session_21_24']) {
+    const items = publishedScenarios.filter(item => item.eventType === type);
+    if (!items.length) continue;
+    const group = document.createElement('optgroup');
+    group.label = labels[type] || type;
+    for (const scenario of items) {
+      const option = document.createElement('option');
+      option.value = scenario.groupKey;
+      option.textContent = `${scenario.title}｜${scenario.attemptCount}回`;
+      group.appendChild(option);
+    }
+    select.appendChild(group);
+  }
+  if (button) button.disabled = true;
+}
+
+function publishedScenarioDescriptor() {
+  if (!activePublishedScenarioKey) return null;
+  const scenario = publishedScenarios.find(item => item.groupKey === activePublishedScenarioKey);
+  if (!scenario) return null;
+  return {
+    key: scenario.groupKey,
+    label: scenario.title,
+    event: scenario.event || null,
+    start: scenario.start,
+    end: scenario.end,
+  };
+}
+
 function selectedEventContext() {
   const name = document.getElementById('eventTypeSel')?.value || '';
   const jst = document.getElementById('eventOccurrenceSel')?.value || '';
@@ -414,7 +492,7 @@ function practiceDescriptor(context) {
 }
 
 function comparisonPracticeDescriptor() {
-  return practiceDescriptor(selectedEventContext() || activeEventContext);
+  return publishedScenarioDescriptor() || practiceDescriptor(selectedEventContext() || activeEventContext);
 }
 
 function updatePracticeTarget() {
@@ -422,27 +500,31 @@ function updatePracticeTarget() {
   const saveBtn = document.getElementById('savePracticeBtn');
   if (!target || !saveBtn) return;
   const selected = selectedEventContext();
-  const descriptor = practiceDescriptor(selected || activeEventContext);
+  const descriptor = publishedScenarioDescriptor() || practiceDescriptor(selected || activeEventContext);
   const activeDescriptor = practiceDescriptor(activeEventContext);
-  const loaded = Boolean(descriptor && activeDescriptor && descriptor.key === activeDescriptor.key);
+  const loaded = Boolean(descriptor && (
+    descriptor.key === activePublishedScenarioKey ||
+    (activeDescriptor && descriptor.key === activeDescriptor.key)
+  ));
   target.classList.toggle('isEmpty', !descriptor);
   target.textContent = descriptor
-    ? `${descriptor.label}${loaded ? '' : '（未読み込み）'}`
+    ? `${descriptor.label}${loaded ? '' : '（未読み込み）'}${activePublishedScenarioKey ? '｜保存DB' : ''}`
     : '先に指標と該当回を選び、「この指標を表示」を押してください';
-  saveBtn.disabled = !loaded;
+  saveBtn.disabled = !loaded || !descriptor.event;
 }
 
 function runsForCurrentPractice() {
   const descriptor = comparisonPracticeDescriptor();
   if (!descriptor) return [];
-  return practiceRuns
+  return allPracticeRuns()
     .filter(run => run.groupKey === descriptor.key)
     .sort((a, b) => Number(a.attempt) - Number(b.attempt));
 }
 
 function runOptionText(run) {
   const total = Number(run.summary?.total_pips || 0);
-  return `${run.attempt}回目｜${run.trades.length}取引｜${signedPips(total)}p`;
+  const source = run.source === 'published_database' ? '｜保存DB' : '';
+  return `${run.attempt}回目｜${run.trades.length}取引｜${signedPips(total)}p${source}`;
 }
 
 function renderPracticeControls(preferLatest = false) {
@@ -498,8 +580,9 @@ function renderPracticeComparison() {
   const selectB = document.getElementById('compareRunB');
   const box = document.getElementById('comparisonResult');
   if (!selectA || !selectB || !box) return;
-  const runA = practiceRuns.find(run => run.id === selectA.value);
-  const runB = practiceRuns.find(run => run.id === selectB.value);
+  const runs = allPracticeRuns();
+  const runA = runs.find(run => run.id === selectA.value);
+  const runB = runs.find(run => run.id === selectB.value);
   if (!runA || !runB || runA.id === runB.id) {
     box.innerHTML = '<div class="comparisonEmpty">異なる2回を選ぶと、成績差とエントリーポイントを表示します。</div>';
     refreshChartMarkers();
@@ -546,7 +629,7 @@ function saveCurrentPractice() {
     setStatus('選択中の指標がまだ読み込まれていません。「この指標を表示」を押してください', 'warn');
     return;
   }
-  const existing = practiceRuns.filter(run => run.groupKey === descriptor.key);
+  const existing = allPracticeRuns().filter(run => run.groupKey === descriptor.key);
   const attempt = existing.reduce((max, run) => Math.max(max, Number(run.attempt) || 0), 0) + 1;
   const now = Date.now();
   practiceRuns.push({
@@ -730,8 +813,9 @@ function refreshChartMarkers(forceCurrentHistory = false) {
   const markers = activeEventMarker ? [activeEventMarker] : [];
   if (forceCurrentHistory || showCurrentMarkers) appendTradeMarkers(markers, trades);
   if (!forceCurrentHistory && showComparedMarkers) {
-    const runA = practiceRuns.find(run => run.id === document.getElementById('compareRunA')?.value);
-    const runB = practiceRuns.find(run => run.id === document.getElementById('compareRunB')?.value);
+    const runs = allPracticeRuns();
+    const runA = runs.find(run => run.id === document.getElementById('compareRunA')?.value);
+    const runB = runs.find(run => run.id === document.getElementById('compareRunB')?.value);
     if (runA && runB && runA.id !== runB.id) {
       appendTradeMarkers(markers, runA.trades, { color: '#1d4ed8', prefix: `${runA.attempt}回目` });
       appendTradeMarkers(markers, runB.trades, { color: '#0891b2', prefix: `${runB.attempt}回目` });
@@ -1064,7 +1148,7 @@ async function init() {
   loadHistory();
   loadPracticeRuns();
   renderHistory();
-  loadEvents();
+  await Promise.all([loadEvents(), loadPublishedPracticeRuns()]);
   try {
     manifest = await loadManifest();
   } catch (e) {
@@ -1633,16 +1717,12 @@ async function exportAnalysisReport() {
   }
 }
 
-document.getElementById('eventTypeSel').addEventListener('change', (e) => {
-  const name = e.target.value;
+function populateEventOccurrences(name, selectedJst = '') {
   const occSel = document.getElementById('eventOccurrenceSel');
   occSel.innerHTML = '<option value="">選択...</option>';
   occSel.disabled = !name;
   document.getElementById('eventLoadBtn').disabled = true;
-  if (!name) {
-    renderPracticeControls();
-    return;
-  }
+  if (!name) return;
   const matches = EVENTS.filter(ev => ev.name === name).sort((a, b) => a.jst.localeCompare(b.jst));
   for (const ev of matches) {
     const opt = document.createElement('option');
@@ -1650,15 +1730,72 @@ document.getElementById('eventTypeSel').addEventListener('change', (e) => {
     opt.textContent = `${ev.period}（${ev.jst.replace('T', ' ')} JST）`;
     occSel.appendChild(opt);
   }
+  if (selectedJst && matches.some(ev => ev.jst === selectedJst)) {
+    occSel.value = selectedJst;
+    document.getElementById('eventLoadBtn').disabled = false;
+  }
+}
+
+function clearPublishedScenarioSelection() {
+  activePublishedScenarioKey = '';
+  const select = document.getElementById('publishedScenarioSel');
+  if (select) select.value = '';
+  const button = document.getElementById('loadPublishedScenarioBtn');
+  if (button) button.disabled = true;
+}
+
+async function loadPublishedScenario() {
+  const groupKey = document.getElementById('publishedScenarioSel').value;
+  const scenario = publishedScenarios.find(item => item.groupKey === groupKey);
+  if (!scenario || !manifest) return;
+  activePublishedScenarioKey = groupKey;
+  const scenarioRuns = publishedPracticeRuns.filter(run => run.groupKey === groupKey);
+  const firstRun = scenarioRuns[0];
+  if (firstRun?.indicators) {
+    smaOn = Boolean(firstRun.indicators.smaOn);
+    smaPeriod = Math.max(2, Math.min(500, Math.round(Number(firstRun.indicators.smaPeriod) || 75)));
+    document.getElementById('smaToggle').checked = smaOn;
+    document.getElementById('smaPeriodInput').value = String(smaPeriod);
+    document.getElementById('smaState').textContent = `SMA${smaPeriod}｜過去${smaPeriod}本の終値平均`;
+  }
+  if (scenario.event) {
+    document.getElementById('eventTypeSel').value = scenario.event.name;
+    populateEventOccurrences(scenario.event.name, scenario.event.jst);
+    pendingEventMarker = {
+      epoch: Number(scenario.event.epoch),
+      label: `${scenario.event.name} ${scenario.event.period || ''}`.trim(),
+    };
+    pendingEventContext = { ...scenario.event };
+  } else {
+    document.getElementById('eventTypeSel').value = '';
+    populateEventOccurrences('');
+    pendingEventMarker = null;
+    pendingEventContext = null;
+  }
+  pendingEventReplayEpoch = null;
+  document.getElementById('startInput').value = scenario.start;
+  document.getElementById('endInput').value = scenario.end;
+  syncRangeUrl(scenario.start, scenario.end);
+  renderPracticeControls(true);
+  await loadRange();
+  renderPracticeControls(true);
+}
+
+document.getElementById('eventTypeSel').addEventListener('change', (e) => {
+  clearPublishedScenarioSelection();
+  const name = e.target.value;
+  populateEventOccurrences(name);
   renderPracticeControls();
 });
 
 document.getElementById('eventOccurrenceSel').addEventListener('change', (e) => {
+  clearPublishedScenarioSelection();
   document.getElementById('eventLoadBtn').disabled = !e.target.value;
   renderPracticeControls();
 });
 
 document.getElementById('eventLoadBtn').addEventListener('click', () => {
+  clearPublishedScenarioSelection();
   const name = document.getElementById('eventTypeSel').value;
   const jstStr = document.getElementById('eventOccurrenceSel').value;
   if (!jstStr || !manifest) return;
@@ -1680,9 +1817,15 @@ document.getElementById('eventLoadBtn').addEventListener('click', () => {
   loadRange();
 });
 
-document.getElementById('loadBtn').addEventListener('click', loadRange);
+document.getElementById('loadBtn').addEventListener('click', () => {
+  clearPublishedScenarioSelection();
+  renderPracticeControls();
+  loadRange();
+});
 document.getElementById('latestBtn').addEventListener('click', () => {
   if (!manifest) return;
+  clearPublishedScenarioSelection();
+  renderPracticeControls();
   document.getElementById('startInput').value = manifest.max + 'T00:00';
   document.getElementById('endInput').value = manifest.max + 'T23:59';
   loadRange();
@@ -1726,6 +1869,10 @@ document.getElementById('savePracticeBtn').addEventListener('click', saveCurrent
 document.getElementById('restartPracticeBtn').addEventListener('click', clearCurrentPracticeTrades);
 document.getElementById('compareRunA').addEventListener('change', renderPracticeComparison);
 document.getElementById('compareRunB').addEventListener('change', renderPracticeComparison);
+document.getElementById('publishedScenarioSel').addEventListener('change', (event) => {
+  document.getElementById('loadPublishedScenarioBtn').disabled = !event.target.value;
+});
+document.getElementById('loadPublishedScenarioBtn').addEventListener('click', loadPublishedScenario);
 document.getElementById('showCurrentMarkers').addEventListener('change', (event) => {
   showCurrentMarkers = event.target.checked;
   refreshChartMarkers();
