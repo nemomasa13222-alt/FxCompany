@@ -73,6 +73,31 @@ input[type=range]{flex:1;min-width:150px;min-height:32px}
 .msg.warn{color:#d97706}
 .msg.info{color:#64748b}
 #chartCard{display:none}
+.markerControls{display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin:12px 0 4px;padding:9px 11px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px}
+.markerControls label{display:inline-flex;align-items:center;gap:7px;font-weight:600;color:#334155;cursor:pointer}
+.markerControls input{width:18px;height:18px;accent-color:#0f766e}
+.practicePanel{margin-top:16px;padding-top:15px;border-top:2px solid #dbe7ef}
+.practiceHead{display:flex;align-items:flex-start;justify-content:space-between;gap:14px}
+.practiceHead h2{font-size:16px;margin:0 0 3px;color:#172033}
+.practiceHead .sub{margin:0}
+.practiceName{display:grid;grid-template-columns:minmax(190px,1fr) auto auto;gap:8px;margin-top:12px}
+.practiceName input{min-width:0;padding:9px 11px;border:1px solid #cbd5e1;border-radius:8px;font-size:14px}
+.practiceName button{font-size:13px;padding:8px 12px;min-height:40px}
+.compareSelectors{display:grid;grid-template-columns:1fr 1fr auto;gap:8px;align-items:end;margin-top:12px}
+.compareSelectors label{display:flex;flex-direction:column;gap:4px;font-size:11px;color:#64748b}
+.compareSelectors select{width:100%;min-width:0;font-size:13px}
+.comparison{margin-top:12px;border:1px solid #dbe3ec;border-radius:9px;overflow:hidden;background:#fbfdff}
+.comparisonEmpty{padding:14px;color:#64748b;font-size:13px}
+.compareTable{width:100%;border-collapse:collapse;font-size:12px}
+.compareTable th,.compareTable td{padding:8px 10px;border-bottom:1px solid #e8eef4;text-align:right}
+.compareTable th:first-child,.compareTable td:first-child{text-align:left;color:#64748b}
+.compareTable thead th{background:#edf4f8;color:#334155}
+.deltaPos{color:#15803d;font-weight:700}.deltaNeg{color:#dc2626;font-weight:700}
+.entryLists{display:grid;grid-template-columns:1fr 1fr;gap:10px;padding:10px}
+.entryList{min-width:0}.entryList h3{font-size:12px;margin:0 0 6px;color:#334155}
+.entryList ol{margin:0;padding-left:20px;font-size:11px;color:#475569;line-height:1.7}
+.entryList .buyText{color:#15803d;font-weight:700}.entryList .sellText{color:#dc2626;font-weight:700}
+.savedHint{margin-top:7px;font-size:11px;color:#64748b}
 
 @media (max-width: 640px) {
   .wrap{padding:10px}
@@ -102,6 +127,7 @@ input[type=range]{flex:1;min-width:150px;min-height:32px}
   .tradeBarInner button{padding:10px 4px;font-size:13px;min-height:42px}
   .tradeHeading{align-items:stretch;flex-direction:column}
   #exportReportBtn{width:100%}
+  .practiceHead{flex-direction:column}.practiceName{grid-template-columns:1fr}.compareSelectors{grid-template-columns:1fr}.entryLists{grid-template-columns:1fr}
   body.has-tradebar{padding-bottom:78px}
 }
 </style>
@@ -198,6 +224,10 @@ input[type=range]{flex:1;min-width:150px;min-height:32px}
       <div class="stat"><div class="label">勝率</div><div class="value" id="histWinRate">-</div></div>
       <div class="stat"><div class="label">合計pips</div><div class="value" id="histTotalPips">0.0</div></div>
     </div>
+    <div class="markerControls">
+      <label><input type="checkbox" id="showCurrentMarkers">今回のエントリー・決済をチャートに表示</label>
+      <span class="sub" style="margin:0">BUY/SELLの位置と決済pipsを確認できます</span>
+    </div>
     <div class="sub" style="margin-top:12px;display:flex;justify-content:space-between;align-items:center">
       <span>取引履歴</span>
       <button id="clearHistBtn" class="secondary small" type="button">履歴クリア</button>
@@ -210,6 +240,24 @@ input[type=range]{flex:1;min-width:150px;min-height:32px}
         <tbody id="historyBody"></tbody>
       </table>
     </div>
+    <section class="practicePanel" id="practicePanel">
+      <div class="practiceHead">
+        <div><h2>練習回を保存して比較</h2><div class="sub">同じ指標を繰り返し、任意の2回を比較します</div></div>
+        <div class="sub" id="savedRunCount">保存 0回</div>
+      </div>
+      <div class="practiceName">
+        <input type="text" id="practiceNameInput" maxlength="80" placeholder="記録名（例：FOMC 10月）" aria-label="練習記録名">
+        <button id="savePracticeBtn" type="button">今回を保存</button>
+        <button id="restartPracticeBtn" class="secondary" type="button">履歴を消して最初から</button>
+      </div>
+      <div class="savedHint" id="practiceHint">指標を選ぶと記録名が自動で入ります。直接期間を指定した場合は記録名を入力できます。</div>
+      <div class="compareSelectors">
+        <label>比較元<select id="compareRunA"><option value="">選択...</option></select></label>
+        <label>比較先<select id="compareRunB"><option value="">選択...</option></select></label>
+        <label style="flex-direction:row;align-items:center;min-height:44px"><input type="checkbox" id="showComparedMarkers">比較した2回をチャート表示</label>
+      </div>
+      <div class="comparison" id="comparisonResult"><div class="comparisonEmpty">保存した2回を選ぶと差が表示されます。</div></div>
+    </section>
   </div>
 </div>
 
@@ -245,6 +293,8 @@ let priceMargin = 0.1;
 let pendingEventMarker = null; // { epoch, label } イベントプルダウンから読み込んだ時だけセット
 let pendingEventReplayEpoch = null;
 let activeEventMarker = null;
+let pendingEventContext = null;
+let activeEventContext = null;
 let loadRequestId = 0;
 let autoScaleOn = true;
 let smaOn = true;
@@ -259,6 +309,10 @@ let positionLine = null;
 let tradeHistory = [];
 const HISTORY_KEY = 'tickReplayTradeHistory_' + PAIR;
 const SESSION_KEY = 'tickReplaySession_' + PAIR;
+const PRACTICE_RUNS_KEY = 'tickReplayPracticeRuns_' + PAIR;
+let practiceRuns = [];
+let showCurrentMarkers = false;
+let showComparedMarkers = false;
 let pendingSessionState = null;
 let lastSessionSaveAt = 0;
 
@@ -316,6 +370,185 @@ function saveHistory() {
   try { localStorage.setItem(HISTORY_KEY, JSON.stringify(tradeHistory)); } catch (e) {}
 }
 
+function loadPracticeRuns() {
+  try {
+    const raw = localStorage.getItem(PRACTICE_RUNS_KEY);
+    const parsed = raw ? JSON.parse(raw) : [];
+    practiceRuns = Array.isArray(parsed) ? parsed.filter(run => run && run.id && Array.isArray(run.trades)) : [];
+  } catch (e) {
+    practiceRuns = [];
+  }
+}
+
+function savePracticeRuns() {
+  try { localStorage.setItem(PRACTICE_RUNS_KEY, JSON.stringify(practiceRuns.slice(-200))); } catch (e) {}
+}
+
+function practiceDescriptor() {
+  const nameInput = document.getElementById('practiceNameInput');
+  const manualName = (nameInput?.value || '').trim();
+  const start = document.getElementById('startInput').value;
+  const end = document.getElementById('endInput').value;
+  if (activeEventContext) {
+    const defaultLabel = `${activeEventContext.name} ${activeEventContext.period || ''}`.trim();
+    return {
+      key: `event|${activeEventContext.name}|${activeEventContext.jst}`,
+      label: manualName || defaultLabel,
+      event: { ...activeEventContext },
+      start,
+      end,
+    };
+  }
+  const label = manualName || `${start.replace('T', ' ')}〜${end.replace('T', ' ')}`;
+  return {
+    key: `range|${start}|${end}|${manualName.toLowerCase()}`,
+    label,
+    event: null,
+    start,
+    end,
+  };
+}
+
+function runsForCurrentPractice() {
+  const descriptor = practiceDescriptor();
+  return practiceRuns
+    .filter(run => run.groupKey === descriptor.key)
+    .sort((a, b) => Number(a.attempt) - Number(b.attempt));
+}
+
+function runOptionText(run) {
+  const total = Number(run.summary?.total_pips || 0);
+  return `${run.attempt}回目｜${run.trades.length}取引｜${signedPips(total)}p`;
+}
+
+function renderPracticeControls(preferLatest = false) {
+  const runs = runsForCurrentPractice();
+  const selectA = document.getElementById('compareRunA');
+  const selectB = document.getElementById('compareRunB');
+  if (!selectA || !selectB) return;
+  const previousA = selectA.value;
+  const previousB = selectB.value;
+  const options = '<option value="">選択...</option>' + runs.map(run =>
+    `<option value="${escapeHtml(run.id)}">${escapeHtml(runOptionText(run))}</option>`
+  ).join('');
+  selectA.innerHTML = options;
+  selectB.innerHTML = options;
+  if (preferLatest && runs.length) {
+    selectB.value = runs[runs.length - 1].id;
+    if (runs.length >= 2) selectA.value = runs[runs.length - 2].id;
+  } else {
+    if (runs.some(run => run.id === previousA)) selectA.value = previousA;
+    if (runs.some(run => run.id === previousB)) selectB.value = previousB;
+    if (!selectA.value && runs.length >= 2) selectA.value = runs[0].id;
+    if (!selectB.value && runs.length) selectB.value = runs[runs.length - 1].id;
+  }
+  document.getElementById('savedRunCount').textContent = `保存 ${runs.length}回`;
+  renderPracticeComparison();
+}
+
+function metricDelta(value, lowerIsBetter = false) {
+  if (!Number.isFinite(value)) return '<span>-</span>';
+  const improved = lowerIsBetter ? value < 0 : value > 0;
+  const worsened = lowerIsBetter ? value > 0 : value < 0;
+  const css = improved ? 'deltaPos' : worsened ? 'deltaNeg' : '';
+  return `<span class="${css}">${value >= 0 ? '+' : ''}${value.toFixed(1)}</span>`;
+}
+
+function entryListHtml(run) {
+  if (!run) return '';
+  const items = run.trades.map((trade, index) => {
+    const sideClass = trade.dir === 'buy' ? 'buyText' : 'sellText';
+    const side = trade.dir === 'buy' ? 'BUY' : 'SELL';
+    return `<li><span class="${sideClass}">${side}</span> ${escapeHtml(fmtTime(Number(trade.entryTime) + JST_OFFSET_MS))} @ ${Number(trade.entryPrice).toFixed(3)} → ${signedPips(Number(trade.pips))}p</li>`;
+  }).join('');
+  return `<div class="entryList"><h3>${escapeHtml(run.attempt + '回目')}のエントリーポイント</h3><ol>${items || '<li>取引なし</li>'}</ol></div>`;
+}
+
+function renderPracticeComparison() {
+  const selectA = document.getElementById('compareRunA');
+  const selectB = document.getElementById('compareRunB');
+  const box = document.getElementById('comparisonResult');
+  if (!selectA || !selectB || !box) return;
+  const runA = practiceRuns.find(run => run.id === selectA.value);
+  const runB = practiceRuns.find(run => run.id === selectB.value);
+  if (!runA || !runB || runA.id === runB.id) {
+    box.innerHTML = '<div class="comparisonEmpty">異なる2回を選ぶと、成績差とエントリーポイントを表示します。</div>';
+    refreshChartMarkers();
+    return;
+  }
+  const a = runA.summary || summarizeTrades(runA.trades);
+  const b = runB.summary || summarizeTrades(runB.trades);
+  const rows = [
+    ['合計pips', signedPips(Number(a.total_pips)), signedPips(Number(b.total_pips)), metricDelta(Number(b.total_pips) - Number(a.total_pips))],
+    ['取引数', a.trade_count, b.trade_count, metricDelta(Number(b.trade_count) - Number(a.trade_count))],
+    ['勝率', `${Number(a.win_rate_pct).toFixed(1)}%`, `${Number(b.win_rate_pct).toFixed(1)}%`, metricDelta(Number(b.win_rate_pct) - Number(a.win_rate_pct))],
+    ['平均pips', signedPips(Number(a.average_pips)), signedPips(Number(b.average_pips)), metricDelta(Number(b.average_pips) - Number(a.average_pips))],
+    ['最大DD', `${Number(a.max_drawdown_pips).toFixed(1)}p`, `${Number(b.max_drawdown_pips).toFixed(1)}p`, metricDelta(Number(b.max_drawdown_pips) - Number(a.max_drawdown_pips), true)],
+    ['最大連敗', `${Number(a.max_losing_streak || 0)}回`, `${Number(b.max_losing_streak || 0)}回`, metricDelta(Number(b.max_losing_streak || 0) - Number(a.max_losing_streak || 0), true)],
+  ];
+  box.innerHTML = `<table class="compareTable"><thead><tr><th>項目</th><th>${escapeHtml(runA.attempt + '回目')}</th><th>${escapeHtml(runB.attempt + '回目')}</th><th>差（後−前）</th></tr></thead><tbody>${rows.map(row => `<tr><td>${row[0]}</td><td>${row[1]}</td><td>${row[2]}</td><td>${row[3]}</td></tr>`).join('')}</tbody></table><div class="entryLists">${entryListHtml(runA)}${entryListHtml(runB)}</div>`;
+  refreshChartMarkers();
+}
+
+function saveCurrentPractice() {
+  const trades = visibleTrades().sort((a, b) => a.entryTime - b.entryTime).map(trade => ({
+    dir: trade.dir,
+    entryTime: Number(trade.entryTime),
+    entryPrice: Number(trade.entryPrice),
+    exitTime: Number(trade.exitTime),
+    exitPrice: Number(trade.exitPrice),
+    pips: Number(trade.pips),
+  }));
+  if (!trades.length) {
+    setStatus('保存できる決済済み取引がありません', 'warn');
+    return;
+  }
+  if (position) {
+    setStatus('保有中のポジションを決済してから保存してください', 'warn');
+    return;
+  }
+  const descriptor = practiceDescriptor();
+  const existing = practiceRuns.filter(run => run.groupKey === descriptor.key);
+  const attempt = existing.reduce((max, run) => Math.max(max, Number(run.attempt) || 0), 0) + 1;
+  const now = Date.now();
+  practiceRuns.push({
+    id: `${descriptor.key}|${now}`,
+    groupKey: descriptor.key,
+    label: descriptor.label,
+    attempt,
+    savedAt: now,
+    start: descriptor.start,
+    end: descriptor.end,
+    event: descriptor.event,
+    indicators: { smaOn, smaPeriod },
+    summary: summarizeTrades(trades),
+    trades,
+  });
+  savePracticeRuns();
+  renderPracticeControls(true);
+  setStatus(`${descriptor.label}の${attempt}回目を保存しました`, 'info');
+}
+
+function clearCurrentPracticeTrades() {
+  if (!TICKS.length) return;
+  if ((visibleTrades().length || position) && !confirm('現在の取引履歴と保有中ポジションを消して、同じ条件を最初から再生しますか？')) return;
+  const from = TICKS[0].t;
+  const to = TICKS[TICKS.length - 1].t;
+  tradeHistory = tradeHistory.filter(trade => !(trade.entryTime >= from && trade.exitTime <= to));
+  saveHistory();
+  stopPlayback();
+  curBarId = -1;
+  series.setData([]);
+  if (smaSeries) smaSeries.setData([]);
+  cancelPosition(false);
+  const restartIndex = activeEventContext?.epoch ? tickIndexAtOrAfter(activeEventContext.epoch) : 0;
+  seekTo(restartIndex);
+  renderHistory();
+  refreshChartMarkers();
+  saveReplayState(true);
+  setStatus('履歴を消して同じ条件を最初から再生できます', 'info');
+}
+
 function loadSessionState() {
   try {
     const raw = localStorage.getItem(SESSION_KEY);
@@ -356,6 +589,8 @@ function saveReplayState(force = false) {
     autoScaleOn,
     visibleRange,
     eventMarker: activeEventMarker ? { ...activeEventMarker } : null,
+    eventContext: activeEventContext ? { ...activeEventContext } : null,
+    practiceName: document.getElementById('practiceNameInput')?.value || '',
   };
   try { localStorage.setItem(SESSION_KEY, JSON.stringify(state)); } catch (e) {}
 }
@@ -384,6 +619,8 @@ function restoreReplayState(state, startStr, endStr) {
   if (!state || state.start !== startStr || state.end !== endStr || !Number.isFinite(state.replayEpoch)) return false;
   const restoreEpoch = Math.max(TICKS[0].t, Math.min(TICKS[TICKS.length - 1].t, state.replayEpoch));
   activeEventMarker = state.eventMarker || activeEventMarker;
+  activeEventContext = state.eventContext || activeEventContext;
+  if (state.practiceName) document.getElementById('practiceNameInput').value = state.practiceName;
   seekTo(tickIndexAtOrBefore(restoreEpoch));
 
   const savedPosition = state.position;
@@ -418,37 +655,50 @@ function visibleTrades() {
     .filter(trade => trade.entryTime >= from && trade.exitTime <= to);
 }
 
-function refreshChartMarkers(includeTradeHistory = false) {
+function appendTradeMarkers(markers, trades, options = {}) {
+  const color = options.color || null;
+  const prefix = options.prefix ? `${options.prefix} ` : '';
+  const from = TICKS.length ? TICKS[0].t : -Infinity;
+  const to = TICKS.length ? currentReplayEpoch() : Infinity;
+  for (const trade of trades) {
+    if (Number(trade.entryTime) < from || Number(trade.exitTime) > to) continue;
+    const entryTime = nearestBarTime(Math.floor((Number(trade.entryTime) + JST_OFFSET_MS) / 60000) * 60);
+    const exitTime = nearestBarTime(Math.floor((Number(trade.exitTime) + JST_OFFSET_MS) / 60000) * 60);
+    if (entryTime != null) {
+      markers.push({
+        time: entryTime,
+        position: trade.dir === 'buy' ? 'belowBar' : 'aboveBar',
+        color: color || (trade.dir === 'buy' ? '#16a34a' : '#dc2626'),
+        shape: trade.dir === 'buy' ? 'arrowUp' : 'arrowDown',
+        text: `${prefix}${trade.dir === 'buy' ? 'BUY' : 'SELL'} ${formatDisplayPrice(toDisplayPrice(Number(trade.entryPrice)))}`,
+      });
+    }
+    if (exitTime != null) {
+      markers.push({
+        time: exitTime,
+        position: trade.dir === 'buy' ? 'aboveBar' : 'belowBar',
+        color: color || (Number(trade.pips) >= 0 ? '#16a34a' : '#dc2626'),
+        shape: 'circle',
+        text: `${prefix}決済 ${signedPips(Number(trade.pips))}p`,
+      });
+    }
+  }
+}
+
+function refreshChartMarkers(forceCurrentHistory = false) {
   const exportBtn = document.getElementById('exportReportBtn');
   const trades = visibleTrades();
   if (exportBtn) exportBtn.disabled = trades.length === 0;
   if (!series || !BARS.length || !TICKS.length) return;
 
   const markers = activeEventMarker ? [activeEventMarker] : [];
-  // 普段のリプレイ画面は見やすさを優先し、決済済み取引を表示しない。
-  // 分析レポートを出力するときだけ一時的に売買位置を重ねる。
-  if (includeTradeHistory) {
-    for (const trade of trades) {
-      const entryTime = nearestBarTime(Math.floor((trade.entryTime + JST_OFFSET_MS) / 60000) * 60);
-      const exitTime = nearestBarTime(Math.floor((trade.exitTime + JST_OFFSET_MS) / 60000) * 60);
-      if (entryTime != null) {
-        markers.push({
-          time: entryTime,
-          position: trade.dir === 'buy' ? 'belowBar' : 'aboveBar',
-          color: trade.dir === 'buy' ? '#16a34a' : '#dc2626',
-          shape: trade.dir === 'buy' ? 'arrowUp' : 'arrowDown',
-          text: `${trade.dir === 'buy' ? 'BUY' : 'SELL'} ${trade.historyIndex} ${formatDisplayPrice(toDisplayPrice(trade.entryPrice))}`,
-        });
-      }
-      if (exitTime != null) {
-        markers.push({
-          time: exitTime,
-          position: trade.dir === 'buy' ? 'aboveBar' : 'belowBar',
-          color: trade.pips >= 0 ? '#16a34a' : '#dc2626',
-          shape: 'circle',
-          text: `決済 ${formatDisplayPrice(toDisplayPrice(trade.exitPrice))} ${(trade.pips >= 0 ? '+' : '') + trade.pips.toFixed(1)}p`,
-        });
-      }
+  if (forceCurrentHistory || showCurrentMarkers) appendTradeMarkers(markers, trades);
+  if (!forceCurrentHistory && showComparedMarkers) {
+    const runA = practiceRuns.find(run => run.id === document.getElementById('compareRunA')?.value);
+    const runB = practiceRuns.find(run => run.id === document.getElementById('compareRunB')?.value);
+    if (runA && runB && runA.id !== runB.id) {
+      appendTradeMarkers(markers, runA.trades, { color: '#1d4ed8', prefix: `${runA.attempt}回目` });
+      appendTradeMarkers(markers, runB.trades, { color: '#0891b2', prefix: `${runB.attempt}回目` });
     }
   }
   if (position && position.entryTime >= TICKS[0].t && position.entryTime <= currentReplayEpoch()) {
@@ -775,6 +1025,7 @@ async function loadEvents() {
 
 async function init() {
   loadHistory();
+  loadPracticeRuns();
   renderHistory();
   loadEvents();
   try {
@@ -833,6 +1084,7 @@ async function init() {
     if (savedSession?.start === restoreStart && savedSession?.end === restoreEnd) pendingSessionState = savedSession;
     await loadRange();
   }
+  renderPracticeControls();
 }
 
 async function fetchDay(dateStr) {
@@ -855,6 +1107,7 @@ async function loadRange() {
     setStatus('この期間のデータがありません（休日・データ範囲外の可能性）', 'error');
     pendingEventMarker = null;
     pendingEventReplayEpoch = null;
+    pendingEventContext = null;
     return;
   }
   const requestId = ++loadRequestId;
@@ -895,12 +1148,14 @@ async function loadRange() {
       setStatus('選択期間にティックがありません（時間外の可能性）', 'error');
       pendingEventMarker = null;
       pendingEventReplayEpoch = null;
+      pendingEventContext = null;
       return;
     }
     if (merged.length > HARD_CAP) {
       setStatus(`ティック数が多すぎます（${merged.length.toLocaleString()}件）。期間を狭めてください。`, 'error');
       pendingEventMarker = null;
       pendingEventReplayEpoch = null;
+      pendingEventContext = null;
       return;
     }
     // SMAウォームアップ用の前営業日は画面の表示対象ではないため、
@@ -926,6 +1181,7 @@ async function loadRange() {
     setStatus('データ取得中にエラーが発生しました', 'error');
     pendingEventMarker = null;
     pendingEventReplayEpoch = null;
+    pendingEventContext = null;
   } finally {
     if (requestId === loadRequestId) {
       document.getElementById('loadBtn').disabled = false;
@@ -1011,9 +1267,15 @@ function buildAndShow(ticks, startStr, endStr, warmupTicks) {
       time: barT, position: 'aboveBar', color: '#f59e0b', shape: 'arrowDown',
       text: pendingEventMarker.label,
     };
+    activeEventContext = pendingEventContext ? { ...pendingEventContext } : null;
+    if (activeEventContext) {
+      document.getElementById('practiceNameInput').value = `${activeEventContext.name} ${activeEventContext.period || ''}`.trim();
+    }
     pendingEventMarker = null;
+    pendingEventContext = null;
   } else {
     activeEventMarker = null;
+    activeEventContext = null;
   }
 
   playing = false;
@@ -1042,6 +1304,7 @@ function buildAndShow(ticks, startStr, endStr, warmupTicks) {
     saveReplayState(true);
   }
   document.getElementById('copyUrlBtn').disabled = false;
+  renderPracticeControls();
 }
 
 // BARS内でtargetSec(秒)に最も近いバー時刻を返す
@@ -1172,11 +1435,13 @@ function summarizeTrades(trades) {
   const losses = pips.filter(value => value < 0).length;
   const grossProfit = pips.filter(value => value > 0).reduce((sum, value) => sum + value, 0);
   const grossLoss = -pips.filter(value => value < 0).reduce((sum, value) => sum + value, 0);
-  let equity = 0, peak = 0, maxDrawdown = 0;
+  let equity = 0, peak = 0, maxDrawdown = 0, losingStreak = 0, maxLosingStreak = 0;
   for (const value of pips) {
     equity += value;
     peak = Math.max(peak, equity);
     maxDrawdown = Math.max(maxDrawdown, peak - equity);
+    losingStreak = value < 0 ? losingStreak + 1 : 0;
+    maxLosingStreak = Math.max(maxLosingStreak, losingStreak);
   }
   const side = dir => {
     const subset = trades.filter(trade => trade.dir === dir);
@@ -1198,6 +1463,7 @@ function summarizeTrades(trades) {
     max_win_pips: winningPips.length ? Math.max(...winningPips) : 0,
     max_loss_pips: losingPips.length ? Math.min(...losingPips) : 0,
     max_drawdown_pips: maxDrawdown,
+    max_losing_streak: maxLosingStreak,
     buy: side('buy'),
     sell: side('sell'),
   };
@@ -1360,6 +1626,12 @@ document.getElementById('eventLoadBtn').addEventListener('click', () => {
   const evEpoch = jstInputToEpoch(jstStr);
   const matched = EVENTS.find(ev => ev.name === name && ev.jst === jstStr);
   pendingEventMarker = { epoch: evEpoch, label: matched ? `${matched.name} ${matched.period}` : name };
+  pendingEventContext = {
+    name,
+    period: matched?.period || '',
+    jst: jstStr,
+    epoch: evEpoch,
+  };
   pendingEventReplayEpoch = evEpoch;
   const startStr = epochToJstInputStr(evEpoch - 30 * 60000);
   const endStr = epochToJstInputStr(evEpoch + 90 * 60000);
@@ -1411,6 +1683,22 @@ document.getElementById('barBuyBtn').addEventListener('click', () => openPositio
 document.getElementById('barSellBtn').addEventListener('click', () => openPosition('sell'));
 document.getElementById('barCloseBtn').addEventListener('click', closePosition);
 document.getElementById('exportReportBtn').addEventListener('click', exportAnalysisReport);
+document.getElementById('savePracticeBtn').addEventListener('click', saveCurrentPractice);
+document.getElementById('restartPracticeBtn').addEventListener('click', clearCurrentPracticeTrades);
+document.getElementById('practiceNameInput').addEventListener('change', () => {
+  renderPracticeControls();
+  saveReplayState(true);
+});
+document.getElementById('compareRunA').addEventListener('change', renderPracticeComparison);
+document.getElementById('compareRunB').addEventListener('change', renderPracticeComparison);
+document.getElementById('showCurrentMarkers').addEventListener('change', (event) => {
+  showCurrentMarkers = event.target.checked;
+  refreshChartMarkers();
+});
+document.getElementById('showComparedMarkers').addEventListener('change', (event) => {
+  showComparedMarkers = event.target.checked;
+  refreshChartMarkers();
+});
 document.getElementById('clearHistBtn').addEventListener('click', () => {
   if (tradeHistory.length && !confirm('取引履歴を削除しますか？')) return;
   tradeHistory = [];
