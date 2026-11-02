@@ -3,261 +3,126 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-  <title>逆張り感覚ラボ｜USDJPY M1</title>
+  <title>逆張り否定ラボ｜USDJPY M1</title>
   <script src="../tick_replay/vendor/lightweight-charts.standalone.production.js"></script>
   <style>
-    :root{
-      --bg:#f2f6f8;--panel:#fff;--ink:#12212e;--muted:#667888;--line:#d6e1e7;
-      --teal:#0f9f95;--teal-dark:#08766f;--amber:#f59e0b;--amber-soft:#fff8e7;
-      --violet:#7456d8;--red:#dc4c5b;--blue:#2878d0;--shadow:0 8px 24px rgba(25,56,72,.08)
-    }
-    *{box-sizing:border-box}html{background:var(--bg)}body{margin:0;color:var(--ink);background:var(--bg);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","Noto Sans JP",sans-serif;line-height:1.5}
-    button,input,select,textarea{font:inherit}button{cursor:pointer}.page{max-width:1160px;margin:0 auto;padding:18px 16px 64px}
-    .top{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;margin-bottom:14px}.title h1{font-size:25px;margin:0 0 4px}.title p{margin:0;color:var(--muted);font-size:13px}.separate{padding:7px 10px;border-radius:9px;background:#e7f7f5;color:var(--teal-dark);font-size:12px;font-weight:800;white-space:nowrap}
-    .card{background:var(--panel);border:1px solid var(--line);border-radius:15px;box-shadow:var(--shadow);padding:16px;margin-top:13px}.card h2{font-size:17px;margin:0 0 12px}.sub{color:var(--muted);font-size:12px}
-    .picker{display:grid;grid-template-columns:1fr 1.3fr 1.5fr auto;gap:10px;align-items:end}.picker>*,.metrics>*,.selection>*{min-width:0}.field label{display:block;color:var(--muted);font-size:12px;margin-bottom:5px}.field select,.field input,.field textarea{width:100%;min-width:0;border:1px solid var(--line);background:#fff;color:var(--ink);border-radius:10px;padding:11px 12px;min-height:46px}
-    .primary,.secondary,.danger,.direction,.finish{border:0;border-radius:11px;padding:12px 17px;font-weight:800;min-height:46px}.primary{background:var(--teal);color:#fff}.secondary{background:#edf3f6;color:#294456}.danger{background:#fff0f1;color:#b62838}.primary:disabled,.secondary:disabled,.direction:disabled{opacity:.42;cursor:not-allowed}
-    .metrics{display:grid;grid-template-columns:repeat(3,1fr);gap:9px;margin-top:12px}.metric{background:#f6fafb;border:1px solid #e1eaee;border-radius:11px;padding:11px}.metric .name{font-size:11px;color:var(--muted)}.metric .value{font-size:21px;font-weight:850;margin-top:2px}.progress{height:7px;background:#dfeaec;border-radius:99px;overflow:hidden;margin-top:8px}.progress span{display:block;height:100%;width:0;background:var(--teal);transition:width .2s ease}
-    .blind{display:flex;gap:10px;align-items:center;background:var(--amber-soft);border:1px solid #f5d98d;border-radius:11px;padding:10px 12px;color:#7c5a08;font-size:13px;margin-bottom:11px}.blind strong{margin-right:auto}.blind button{border:1px solid #e2ba48;background:#fff8e7;color:#725208;border-radius:8px;padding:7px 10px;font-weight:800}
-    #chart{height:500px;width:100%;touch-action:pan-y}.chartWrap{border:1px solid var(--line);border-radius:11px;overflow:hidden;background:#fff}.quoteRow{display:grid;grid-template-columns:1.5fr repeat(3,1fr);gap:7px;margin:10px 0}.quote{background:#f6fafb;border:1px solid #e2ebef;border-radius:9px;padding:8px 10px}.quote b{display:block;font-size:14px}.quote span{font-size:10px;color:var(--muted)}
-    .replay{display:grid;grid-template-columns:auto auto 1fr auto;gap:8px;align-items:center;margin-top:10px}.replay button{border:0;border-radius:9px;padding:9px 13px;background:#eaf1f4;color:#294456;font-weight:800}.replay input[type=range]{width:100%}.replay select{border:1px solid var(--line);border-radius:9px;padding:8px}.status{min-height:22px;font-size:12px;color:var(--muted);margin-top:8px}.status.error{color:#b42335}.status.ok{color:var(--teal-dark)}
-    .selection{display:grid;grid-template-columns:1.1fr 1fr;gap:13px}.selectedBox{border:1px solid var(--line);border-radius:12px;padding:13px;background:#f8fbfc}.selectedTime{font-size:18px;font-weight:850}.ohlc{font-size:12px;color:var(--muted);margin-top:5px}.directionRow{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-top:11px}.direction.high{background:#fff2e1;color:#915500;border:1px solid #f2bd69}.direction.low{background:#eeeafd;color:#5239a5;border:1px solid #baaaf1}.direction.active{box-shadow:inset 0 0 0 2px currentColor}
-    .formPart{margin-bottom:12px}.formPart:last-child{margin-bottom:0}.formPart h3{font-size:12px;color:var(--muted);margin:0 0 7px}.chips{display:flex;flex-wrap:wrap;gap:7px}.chip{position:relative}.chip input{position:absolute;opacity:0;pointer-events:none}.chip span{display:inline-flex;padding:7px 10px;border:1px solid var(--line);border-radius:999px;background:#fff;font-size:12px;align-items:center}.chip input:checked+span{border-color:var(--teal);background:#e6f7f5;color:#08766f;font-weight:800}.memo{width:100%;min-height:64px;resize:vertical;border:1px solid var(--line);border-radius:10px;padding:9px}.saveRow{display:flex;gap:8px;margin-top:10px}.saveRow .primary{flex:1}
-    .compareBox{display:none;background:#f7fafc;border:1px solid var(--line);border-radius:11px;padding:12px;margin-top:12px}.compareGrid{display:grid;grid-template-columns:repeat(5,1fr);gap:7px}.compareGrid div{background:#fff;border:1px solid #e2eaee;border-radius:9px;padding:8px}.compareGrid small{display:block;color:var(--muted)}.compareGrid b{font-size:18px}
-    .list{display:grid;gap:8px}.labelItem{display:grid;grid-template-columns:auto 1fr auto;gap:10px;align-items:center;border:1px solid var(--line);border-radius:11px;padding:10px}.tag{border-radius:8px;padding:6px 8px;font-size:11px;font-weight:850}.tag.high{background:#fff2e1;color:#8c5200}.tag.low{background:#eeeafd;color:#5139a4}.labelMeta b{font-size:13px}.labelMeta div{font-size:11px;color:var(--muted)}.labelItem button{border:0;background:#fff0f1;color:#b62838;border-radius:8px;padding:7px 9px;font-weight:800}.empty{color:var(--muted);font-size:13px;padding:15px;text-align:center;border:1px dashed var(--line);border-radius:10px}
-    .finish{width:100%;background:#173849;color:#fff;margin-top:12px}.finish.done{background:var(--teal-dark)}
-    @media(max-width:760px){body{overflow-x:hidden}.page{padding:13px 10px 48px;overflow:hidden}.top{display:block}.title,.top>*{min-width:0}.title h1{font-size:20px;overflow-wrap:anywhere}.title p{font-size:11px}.separate{display:inline-flex;font-size:10px;margin-top:8px;white-space:normal}.picker{grid-template-columns:minmax(0,1fr)}.picker .session,.picker .primary{grid-column:1}.metrics{grid-template-columns:repeat(3,minmax(0,1fr))}.metric{padding:8px}.metric .value{font-size:17px}.blind{align-items:stretch;flex-direction:column}.blind button{width:100%}#chart{height:370px}.quoteRow{grid-template-columns:1fr 1fr}.quoteRow .wide{grid-column:1/3}.replay{grid-template-columns:auto auto 1fr}.replay select{grid-column:1/4;width:100%}.selection{grid-template-columns:1fr}.compareGrid{grid-template-columns:repeat(2,1fr)}.card{padding:12px;border-radius:12px}.direction{padding:10px 7px;font-size:13px}.labelItem{grid-template-columns:auto 1fr}.labelItem button{grid-column:1/3;width:100%}}
+    :root{--bg:#eef4f6;--paper:#fff;--ink:#102431;--muted:#657987;--line:#d5e2e7;--teal:#0caaa0;--teal-deep:#08756f;--cyan:#0dcde0;--orange:#f3a512;--red:#df5260;--violet:#7358d8;--navy:#123848;--shadow:0 9px 28px rgba(31,66,82,.09)}
+    *{box-sizing:border-box}html{background:var(--bg)}body{margin:0;background:var(--bg);color:var(--ink);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","Noto Sans JP",sans-serif;line-height:1.45;overflow-x:hidden}button,input,select,textarea{font:inherit}button{cursor:pointer}.page{max-width:980px;margin:auto;padding:12px 12px 56px}.top{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:3px 2px 8px}.top h1{font-size:21px;margin:0}.top p{font-size:11px;color:var(--muted);margin:2px 0 0}.separate{font-size:10px;font-weight:850;color:var(--teal-deep);background:#dff6f3;border-radius:999px;padding:6px 9px;white-space:nowrap}
+    .card{background:var(--paper);border:1px solid var(--line);border-radius:15px;box-shadow:var(--shadow);padding:13px;margin-top:10px}.setup{display:grid;grid-template-columns:1fr 1fr 1.25fr auto;gap:8px;align-items:end}.field{min-width:0}.field label{display:block;font-size:10px;color:var(--muted);margin:0 0 4px}.field select{width:100%;min-width:0;height:42px;border:1px solid var(--line);border-radius:10px;background:#fff;padding:0 10px;color:var(--ink)}.primary,.secondary,.danger{border:0;border-radius:10px;min-height:42px;padding:9px 14px;font-weight:850}.primary{background:var(--teal);color:#fff}.secondary{background:#eaf1f4;color:#294553}.danger{background:#fff0f1;color:#b22c3d}.primary:disabled,.secondary:disabled{opacity:.42}.monthStats{display:flex;gap:16px;margin-top:9px;color:var(--muted);font-size:11px}.monthStats b{color:var(--ink);font-size:14px;margin-left:3px}
+    .workbench{scroll-margin-top:6px;padding:10px}.phaseRail{display:grid;grid-template-columns:1fr 1fr 1fr;gap:5px;margin-bottom:8px}.phase{position:relative;padding:7px 8px;border-radius:9px;background:#eef3f5;color:#758691;font-size:10px;font-weight:800;text-align:center}.phase.active{background:#dcf7f4;color:#08766f;box-shadow:inset 0 0 0 1px #78d9d2}.phase.done{background:#173e4d;color:#fff}.chartShell{position:relative;border:1px solid var(--line);border-radius:12px;overflow:hidden;background:#fff}.nowLine{position:absolute;z-index:5;left:8px;right:8px;top:8px;display:flex;gap:10px;align-items:center;padding:6px 8px;border-radius:9px;background:rgba(255,255,255,.92);border:1px solid rgba(205,220,226,.9);backdrop-filter:blur(5px);font-size:11px;pointer-events:none}.nowLine b{font-size:13px}.nowLine .prices{margin-left:auto;color:#395160}.nowLine small{color:var(--muted)}#chart{height:clamp(300px,46svh,430px);width:100%;touch-action:pan-y}.replay{display:grid;grid-template-columns:auto auto 1fr auto;gap:7px;align-items:center;margin-top:8px}.replay button{border:0;border-radius:9px;min-height:40px;padding:8px 12px;background:#e8f0f3;color:#294553;font-weight:850}.replay input{width:100%}.replay select{height:40px;border:1px solid var(--line);border-radius:9px;background:#fff}.status{min-height:18px;margin:5px 2px 0;font-size:11px;color:var(--muted)}.status.ok{color:var(--teal-deep)}.status.error{color:#b42335}
+    .capture{margin-top:8px;border-radius:12px;background:#f4f8fa;border:1px solid #dce7eb;padding:9px}.captureTitle{display:flex;justify-content:space-between;align-items:center;gap:8px;font-size:11px;color:var(--muted);margin-bottom:7px}.captureTitle b{font-size:13px;color:var(--ink)}.evidenceButtons{display:grid;grid-template-columns:1fr 1fr;gap:7px}.markButton{border:1px solid;min-height:56px;border-radius:11px;padding:8px;font-weight:900;line-height:1.25}.markButton small{display:block;font-weight:700;font-size:10px;margin-top:3px}.markButton.long{background:#e3faf7;border-color:#54d1c8;color:#08756f}.markButton.short{background:#fff1e0;border-color:#f0bd6a;color:#8a5200}.pending{display:none;gap:8px}.pending.show{display:grid}.pendingText{min-width:0}.pendingText b{display:block;font-size:14px}.pendingText span{display:block;font-size:10px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.candidateNav{display:grid;grid-template-columns:repeat(4,1fr);gap:5px}.candidateNav button{border:1px solid #cbdadd;border-radius:8px;background:#fff;color:#294b58;min-height:36px;font-size:11px;font-weight:850}.entryActions{display:grid;grid-template-columns:1fr auto;gap:6px}.entryButton{border:0;border-radius:10px;min-height:48px;padding:8px 13px;color:#fff;font-weight:900}.entryButton.long{background:var(--teal)}.entryButton.short{background:var(--red)}.resetButton{border:0;border-radius:10px;background:#e5edef;color:#425a66;padding:8px 10px;font-weight:800}
+    details.extra{margin-top:7px;border-top:1px dashed #ccdade;padding-top:6px}details.extra summary{font-size:11px;color:#526975;cursor:pointer}.extraGrid{display:grid;grid-template-columns:auto 1fr;gap:8px;margin-top:8px}.strength{display:flex;gap:5px}.pill{position:relative}.pill input{position:absolute;opacity:0}.pill span{display:inline-flex;padding:6px 8px;border:1px solid var(--line);border-radius:999px;background:#fff;font-size:10px}.pill input:checked+span{background:#dff7f4;border-color:var(--teal);color:var(--teal-deep);font-weight:850}.reasonRow{display:flex;flex-wrap:wrap;gap:5px}.memo{width:100%;grid-column:1/3;border:1px solid var(--line);border-radius:9px;padding:7px 9px;min-height:42px;resize:vertical;font-size:11px}
+    .savedHead{display:flex;justify-content:space-between;align-items:center;gap:8px}.savedHead h2{font-size:15px;margin:0}.finish{border:0;border-radius:9px;background:var(--navy);color:#fff;padding:8px 11px;font-size:11px;font-weight:850}.finish.done{background:var(--teal-deep)}.list{display:grid;gap:7px;margin-top:9px}.item{display:grid;grid-template-columns:auto 1fr auto;gap:8px;align-items:center;border:1px solid var(--line);border-radius:10px;padding:8px}.dir{border-radius:8px;padding:6px 8px;font-weight:900;font-size:11px}.dir.long{background:#ddf8f5;color:#08756f}.dir.short{background:#fff0e0;color:#8a5200}.item b{display:block;font-size:12px}.item span{display:block;color:var(--muted);font-size:10px}.item button{border:0;border-radius:8px;background:#fff0f1;color:#b22c3d;padding:6px 8px;font-size:10px;font-weight:800}.empty{padding:12px;text-align:center;color:var(--muted);font-size:11px;border:1px dashed var(--line);border-radius:9px}
+    @media(max-width:700px){.page{width:100%;max-width:100%;padding:9px 8px 42px}.top{align-items:flex-start}.top h1{font-size:18px}.top p{font-size:10px;max-width:270px}.separate{display:none}.card,.workbench,.chartShell,#chart{width:100%;max-width:100%;min-width:0;overflow:hidden}.setup{grid-template-columns:minmax(0,1fr)}.setup .session,.setup .primary{grid-column:1}.monthStats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:4px}.monthStats span{text-align:center}.workbench{padding:8px;min-height:calc(100svh - 14px)}.phaseRail{grid-template-columns:repeat(3,minmax(0,1fr))}.phase{min-width:0;padding:6px 2px;font-size:8px;overflow-wrap:anywhere}#chart{height:clamp(300px,43svh,390px)}.nowLine{gap:5px;left:5px;right:5px}.nowLine .prices{font-size:9px}.nowLine small{display:none}.replay{grid-template-columns:auto auto minmax(0,1fr)}.replay select{grid-column:1/4;width:100%;height:36px}.capture{padding:8px}.markButton{min-height:54px;font-size:12px}.pending.show{grid-template-columns:1fr}.entryActions{display:grid;grid-template-columns:minmax(0,1fr) auto}.entryButton{min-height:50px}.extraGrid{grid-template-columns:1fr}.memo{grid-column:1}.card{border-radius:12px}.item{grid-template-columns:auto minmax(0,1fr)}.item button{grid-column:1/3;width:100%}}
   </style>
 </head>
 <body>
 <main class="page">
-  <header class="top">
-    <div class="title"><h1>逆張り感覚ラボ　USDJPY M1</h1><p>印を見ずに、自分が「逆張りが入った」と感じた足を記録します。</p></div>
-    <div class="separate">通常デモとは別保存</div>
-  </header>
+  <header class="top"><div><h1>逆張り否定ラボ　USDJPY M1</h1><p>逆張りの証拠と、その否定後のエントリーだけを2点で記録します。</p></div><span class="separate">通常デモとは別保存</span></header>
 
   <section class="card">
-    <div class="picker">
-      <div class="field"><label for="monthSel">対象月</label><select id="monthSel"></select></div>
-      <div class="field"><label for="dateSel">対象日</label><select id="dateSel"></select></div>
-      <div class="field session"><label for="sessionSel">表示時間</label><select id="sessionSel"><option value="09:00|24:00">9時〜24時</option><option value="09:00|12:00">9時〜12時</option><option value="12:00|16:00">12時〜16時</option><option value="16:00|20:00">16時〜20時</option><option value="20:00|24:00">20時〜24時</option><option value="00:00|24:00">終日</option></select></div>
+    <div class="setup">
+      <div class="field"><label>対象月</label><select id="monthSel"></select></div>
+      <div class="field"><label>対象日</label><select id="dateSel"></select></div>
+      <div class="field session"><label>表示時間</label><select id="sessionSel"><option value="09:00|24:00">9時〜24時</option><option value="09:00|12:00">9時〜12時</option><option value="12:00|16:00">12時〜16時</option><option value="16:00|20:00">16時〜20時</option><option value="20:00|24:00">20時〜24時</option><option value="00:00|24:00">終日</option></select></div>
       <button class="primary" id="loadBtn">この日を読み込む</button>
     </div>
-    <div class="metrics">
-      <div class="metric"><div class="name">確認済みの日</div><div class="value" id="reviewedMetric">0 / 0</div><div class="progress"><span id="reviewProgress"></span></div></div>
-      <div class="metric"><div class="name">今月の自分の判定</div><div class="value" id="monthLabelMetric">0件</div></div>
-      <div class="metric"><div class="name">現在の日</div><div class="value" id="dayLabelMetric">0件</div></div>
-    </div>
+    <div class="monthStats"><span>確認済み <b id="reviewedMetric">0 / 0</b></span><span>今月 <b id="monthMetric">0件</b></span><span>この日 <b id="dayMetric">0件</b></span></div>
   </section>
 
-  <section class="card" id="chartCard">
-    <div class="blind"><strong id="blindLabel">ブラインド判定中｜現行ルールの印は非表示</strong><button id="revealBtn" disabled>記録後に現行ルールを表示</button></div>
-    <div class="chartWrap"><div id="chart"></div></div>
-    <div class="quoteRow">
-      <div class="quote wide"><span>時刻</span><b id="curTime">--</b></div><div class="quote"><span>BID</span><b id="curBid">--</b></div><div class="quote"><span>ASK</span><b id="curAsk">--</b></div><div class="quote"><span>進捗</span><b id="curProgress">--</b></div>
+  <section class="card workbench" id="workbench">
+    <div class="phaseRail"><div class="phase active" id="phase1">1　エントリーを記録</div><div class="phase" id="phase2">2　過去の逆張りを探す</div><div class="phase" id="phase3">3　2点を保存</div></div>
+    <div class="chartShell">
+      <div class="nowLine"><b id="curTime">--</b><span class="prices">BID <b id="curBid">--</b>　ASK <b id="curAsk">--</b></span><small id="curProgress">--</small></div>
+      <div id="chart"></div>
     </div>
     <div class="replay"><button id="playBtn" disabled>▶ 再生</button><button id="stepBtn" disabled>＋1分</button><input id="seekBar" type="range" min="0" max="1000" value="0" disabled><select id="speedSel"><option value="1">実速</option><option value="10">10倍</option><option value="60" selected>60倍</option><option value="300">300倍</option><option value="max">最速</option></select></div>
     <div class="status" id="status">データ一覧を確認中...</div>
-    <div class="compareBox" id="compareBox"><div class="compareGrid"><div><small>自分の判定</small><b id="cmpHuman">0</b></div><div><small>現行ルール</small><b id="cmpAlgo">0</b></div><div><small>一致（±1分）</small><b id="cmpMatch">0</b></div><div><small>自分だけ</small><b id="cmpHumanOnly">0</b></div><div><small>ルールだけ</small><b id="cmpAlgoOnly">0</b></div></div></div>
-  </section>
 
-  <section class="card">
-    <h2>選んだ足を記録</h2>
-    <div class="selection">
-      <div>
-        <div class="selectedBox"><div class="selectedTime" id="selectedTime">チャートの足をタップ</div><div class="ohlc" id="selectedOhlc">再生済みのローソク足から選べます。</div></div>
-        <div class="directionRow"><button class="direction high" id="highSellBtn" disabled>高値で売り逆張り</button><button class="direction low" id="lowBuyBtn" disabled>安値で買い逆張り</button></div>
+    <div class="capture">
+      <div class="captureTitle"><b id="captureHeading">現在足を「エントリー」として記録</b><span id="captureHint">逆張りは後から選択</span></div>
+      <div class="evidenceButtons" id="evidenceButtons">
+        <button class="markButton long" id="longEvidence" disabled>↑ LONGエントリー<small>現在足を先に記録</small></button>
+        <button class="markButton short" id="shortEvidence" disabled>↓ SHORTエントリー<small>現在足を先に記録</small></button>
       </div>
-      <div>
-        <div class="formPart"><h3>感じた強さ</h3><div class="chips"><label class="chip"><input type="radio" name="strength" value="weak"><span>弱い</span></label><label class="chip"><input type="radio" name="strength" value="normal" checked><span>普通</span></label><label class="chip"><input type="radio" name="strength" value="strong"><span>強い</span></label></div></div>
-        <div class="formPart"><h3>そう感じた理由（複数可）</h3><div class="chips" id="reasonChips"><label class="chip"><input type="checkbox" value="long_wick"><span>長い髭</span></label><label class="chip"><input type="checkbox" value="round_number"><span>キリ番</span></label><label class="chip"><input type="checkbox" value="recent_extreme"><span>直近高安</span></label><label class="chip"><input type="checkbox" value="h1_extreme"><span>1時間足高安</span></label><label class="chip"><input type="checkbox" value="rapid_move"><span>急騰・急落</span></label><label class="chip"><input type="checkbox" value="repeated_rejection"><span>複数回反発</span></label><label class="chip"><input type="checkbox" value="trend_context"><span>流れ・地合い</span></label><label class="chip"><input type="checkbox" value="other"><span>その他</span></label></div></div>
-        <div class="formPart"><h3>メモ（任意）</h3><textarea class="memo" id="noteInput" maxlength="240" placeholder="例：159.000を抜けた直後に強い上髭"></textarea></div>
+      <div class="pending" id="pendingPanel">
+        <div class="pendingText"><b id="pendingTitle">--</b><span id="pendingMeta">--</span></div>
+        <div class="candidateNav"><button data-move="-10">−10分</button><button data-move="-1">−1分</button><button data-move="1">＋1分</button><button data-move="10">＋10分</button></div>
+        <div class="entryActions"><button class="entryButton" id="entryBtn">選択中の足を逆張りとして2点保存</button><button class="resetButton" id="resetBtn">やり直す</button></div>
       </div>
+      <details class="extra"><summary>強さ・根拠・メモを追加（任意）</summary><div class="extraGrid">
+        <div class="strength"><label class="pill"><input type="radio" name="strength" value="weak"><span>弱い</span></label><label class="pill"><input type="radio" name="strength" value="normal" checked><span>普通</span></label><label class="pill"><input type="radio" name="strength" value="strong"><span>強い</span></label></div>
+        <div class="reasonRow" id="reasonChips"><label class="pill"><input type="checkbox" value="long_wick"><span>長い髭</span></label><label class="pill"><input type="checkbox" value="round_number"><span>キリ番</span></label><label class="pill"><input type="checkbox" value="recent_extreme"><span>直近高安</span></label><label class="pill"><input type="checkbox" value="h1_extreme"><span>H1高安</span></label><label class="pill"><input type="checkbox" value="rapid_move"><span>急騰急落</span></label><label class="pill"><input type="checkbox" value="repeated_rejection"><span>複数反発</span></label></div>
+        <textarea class="memo" id="noteInput" maxlength="240" placeholder="任意メモ"></textarea>
+      </div></details>
     </div>
-    <div class="saveRow"><button class="primary" id="saveBtn" disabled>この判定をオンライン保存</button><button class="secondary" id="clearSelectionBtn" disabled>選択解除</button></div>
   </section>
 
   <section class="card">
-    <h2>この日に保存した判定</h2>
-    <div class="list" id="labelList"><div class="empty">まだ保存されていません。</div></div>
-    <button class="finish" id="completeBtn" disabled>この日の確認を完了する</button>
+    <div class="savedHead"><h2>この日に登録したエントリー</h2><button class="finish" id="completeBtn" disabled>この日の確認を完了</button></div>
+    <div class="list" id="sequenceList"><div class="empty">まだ登録されていません。</div></div>
   </section>
 </main>
 
 <script>
-const PAIR='USDJPY';
-const JST_OFFSET_MS=9*60*60*1000;
+const PAIR='USDJPY', JST=9*60*60*1000;
 const API='https://tick-replay-results-api.nemomasa01222.workers.dev';
 const TOKEN_KEY='tickReplayDeviceToken_v1';
-const MONTH_MIN='2026-01', MONTH_MAX='2026-10';
+let manifest=null,TICKS=[],BARS=[],N=0,curIdx=-1,curBarId=-1,chart=null,series=null,smaSeries=null;
+let o=0,h=0,l=0,c=0,playing=false,lastFrame=null,simMs=0,currentDate='',rangeStart='',rangeEnd='';
+let entryPoint=null,evidence=null,candidateIndex=-1,direction='',monthSequences=[],reviewedDays=[];
+const $=id=>document.getElementById(id),pad=n=>String(n).padStart(2,'0');
+function setStatus(t,k=''){const e=$('status');e.textContent=t;e.className='status '+k}
+function jstEpoch(v){return Date.parse(v+':00+09:00')}
+function jstMinute(ms){const d=new Date(ms+JST);return `${d.getUTCFullYear()}-${pad(d.getUTCMonth()+1)}-${pad(d.getUTCDate())}T${pad(d.getUTCHours())}:${pad(d.getUTCMinutes())}`}
+function jstDisplay(ms){return jstMinute(ms).replace('T',' ')}
+function addDays(s,n){const d=new Date(s+'T00:00:00Z');d.setUTCDate(d.getUTCDate()+n);return d.toISOString().slice(0,10)}
+function monthBounds(m){const [y,n]=m.split('-').map(Number),from=Date.parse(`${m}-01T00:00:00+09:00`),next=n===12?`${y+1}-01`:`${y}-${pad(n+1)}`;return{from,to:Date.parse(`${next}-01T00:00:00+09:00`)}}
+function escapeHtml(v){return String(v).replace(/[&<>"']/g,x=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[x]))}
 
-let manifest=null, TICKS=[], BARS=[], N=0, curIdx=-1, curBarId=-1;
-let chart=null, series=null, smaSeries=null, selectedBar=null, selectedType='';
-let playing=false, lastFrame=null, simMs=0, algoVisible=false, algoSignals=[];
-let monthLabels=[], reviewedDays=[], rangeStart='', rangeEnd='', currentDate='';
-let o=0,h=0,l=0,c=0;
+function ensureChart(){if(chart)return;chart=LightweightCharts.createChart($('chart'),{autoSize:true,layout:{background:{color:'#fff'},textColor:'#263746'},grid:{vertLines:{color:'#edf2f4'},horzLines:{color:'#edf2f4'}},timeScale:{timeVisible:true,secondsVisible:false,borderColor:'#d5e0e5'},rightPriceScale:{borderColor:'#d5e0e5',scaleMargins:{top:.12,bottom:.1}},handleScroll:{vertTouchDrag:false}});series=chart.addCandlestickSeries({upColor:'#20a89e',downColor:'#e85360',borderUpColor:'#20a89e',borderDownColor:'#e85360',wickUpColor:'#20a89e',wickDownColor:'#e85360',priceFormat:{type:'price',precision:3,minMove:.001},title:'USDJPY'});smaSeries=chart.addLineSeries({color:'#0cc8dc',lineWidth:2,priceLineVisible:false,lastValueVisible:true,title:'SMA75'})}
+async function fetchDay(d){const r=await fetch(`../tick_replay/data/USDJPY/${d}.json`,{cache:'no-store'});return r.ok?r.json():null}
+function monthDates(m){return manifest.dates.filter(d=>d.startsWith(m)&&d>='2026-01-01'&&d<='2026-10-31')}
+function populateMonths(){const ms=[...new Set(manifest.dates.filter(d=>d>='2026-01-01'&&d<='2026-10-31').map(d=>d.slice(0,7)))];$('monthSel').innerHTML=ms.map(m=>`<option value="${m}">${m.replace('-','年')}月</option>`).join('');$('monthSel').value=ms.includes('2026-01')?'2026-01':ms[0];populateDates()}
+function populateDates(){const ds=monthDates($('monthSel').value),old=$('dateSel').value;$('dateSel').innerHTML=ds.map(d=>`<option value="${d}">${d}</option>`).join('');if(ds.includes(old))$('dateSel').value=old;updateMetrics()}
+function sessionRange(){const d=$('dateSel').value,[a,b]=$('sessionSel').value.split('|'),start=`${d}T${a}`,end=b==='24:00'?`${addDays(d,1)}T00:00`:`${d}T${b}`;return{date:d,start,end,startMs:jstEpoch(start),endMs:jstEpoch(end)}}
+function makeBars(ticks){const out=[];let minute=null,bar=null;for(let i=0;i<ticks.length;i++){const t=Math.floor((ticks[i].t+JST)/60000)*60;if(t!==minute){bar={t,o:ticks[i].m,h:ticks[i].m,l:ticks[i].m,c:ticks[i].m,s:i,i:out.length};out.push(bar);minute=t}else{bar.h=Math.max(bar.h,ticks[i].m);bar.l=Math.min(bar.l,ticks[i].m);bar.c=ticks[i].m}ticks[i].g=out.length-1}return out}
+const barData=b=>({time:b.t,open:b.o,high:b.h,low:b.l,close:b.c});
+function smaData(limit){const data=[],w=[];let sum=0;for(let i=0;i<=limit&&i<BARS.length;i++){w.push(BARS[i].c);sum+=BARS[i].c;if(w.length>75)sum-=w.shift();if(w.length===75)data.push({time:BARS[i].t,value:sum/75})}return data}
 
-const $=id=>document.getElementById(id);
-const pad=n=>String(n).padStart(2,'0');
-function setStatus(text,type=''){const el=$('status');el.textContent=text;el.className='status '+type;}
-function jstInputToEpoch(value){return Date.parse(value+':00+09:00');}
-function jstMinute(ms){const d=new Date(ms+JST_OFFSET_MS);return `${d.getUTCFullYear()}-${pad(d.getUTCMonth()+1)}-${pad(d.getUTCDate())}T${pad(d.getUTCHours())}:${pad(d.getUTCMinutes())}`;}
-function jstDisplay(ms){return jstMinute(ms).replace('T',' ');}
-function addDays(dateStr,days){const d=new Date(dateStr+'T00:00:00Z');d.setUTCDate(d.getUTCDate()+days);return d.toISOString().slice(0,10);}
-function monthBounds(month){const [y,m]=month.split('-').map(Number);const from=Date.parse(`${month}-01T00:00:00+09:00`);const nextM=m===12?`${y+1}-01`:`${y}-${pad(m+1)}`;const to=Date.parse(`${nextM}-01T00:00:00+09:00`);return{from,to};}
+async function loadRange(scroll=true){if(!manifest)return;stop();resetDraft();const r=sessionRange();currentDate=r.date;rangeStart=r.start;rangeEnd=r.end;setStatus('ティックデータを読み込み中...');$('loadBtn').disabled=true;try{const dates=[],pos=manifest.dates.indexOf(r.date);if(pos>0)dates.push(manifest.dates[pos-1]);dates.push(r.date);if(r.end.slice(0,10)!==r.date&&manifest.dates.includes(r.end.slice(0,10)))dates.push(r.end.slice(0,10));const ps=await Promise.all([...new Set(dates)].map(fetchDay)),ticks=[];for(const p of ps.filter(Boolean))for(let i=0;i<p.t.length;i++)if(p.t[i]>=r.startMs&&p.t[i]<r.endMs){const b=p.b[i],a=p.a[i];ticks.push({t:p.t[i],b,a,m:Math.round((b+a)/2*1000)/1000})}ticks.sort((a,b)=>a.t-b.t);if(!ticks.length)throw new Error('この時間帯にはティックがありません');TICKS=ticks;N=ticks.length;BARS=makeBars(TICKS);ensureChart();series.setData([]);smaSeries.setData([]);curIdx=-1;curBarId=-1;seekTo(0);chart.timeScale().fitContent();setReplayEnabled(true);$('completeBtn').disabled=false;setStatus(`${r.start.replace('T',' ')}〜${r.end.replace('T',' ')}　${N.toLocaleString()}ティック`,'ok');renderSequences();updateMetrics();if(scroll)$('workbench').scrollIntoView({behavior:'smooth',block:'start'})}catch(e){setStatus(e.message||'読み込みに失敗しました','error')}finally{$('loadBtn').disabled=false}}
+function seekTo(index){if(!N)return;index=Math.max(0,Math.min(N-1,index));const g=TICKS[index].g;series.setData(BARS.slice(0,g).map(barData));const start=BARS[g].s;o=TICKS[start].m;h=o;l=o;c=o;for(let i=start;i<=index;i++){const m=TICKS[i].m;h=Math.max(h,m);l=Math.min(l,m);c=m}curIdx=index;curBarId=g;series.update({time:BARS[g].t,open:o,high:h,low:l,close:c});smaSeries.setData(smaData(g));simMs=TICKS[index].t-TICKS[0].t;renderTick();refreshMarkers()}
+function applyTick(i){const tk=TICKS[i],g=tk.g;if(g!==curBarId){curBarId=g;o=tk.m;h=o;l=o;c=o}else{h=Math.max(h,tk.m);l=Math.min(l,tk.m);c=tk.m}curIdx=i;series.update({time:BARS[g].t,open:o,high:h,low:l,close:c});if(g!==TICKS[Math.max(0,i-1)].g)smaSeries.setData(smaData(g));renderTick()}
+function renderTick(){const t=TICKS[curIdx];$('curTime').textContent=jstDisplay(t.t);$('curBid').textContent=t.b.toFixed(3);$('curAsk').textContent=t.a.toFixed(3);$('curProgress').textContent=`${(curIdx+1).toLocaleString()} / ${N.toLocaleString()}`}
+function play(){if(!N)return;if(playing){stop();return}playing=true;lastFrame=null;$('playBtn').textContent='Ⅱ 一時停止';requestAnimationFrame(frame)}
+function stop(){playing=false;$('playBtn').textContent='▶ 再生';lastFrame=null}
+function frame(now){if(!playing)return;const dt=lastFrame===null?0:now-lastFrame;lastFrame=now;const speed=$('speedSel').value;if(speed==='max')seekTo(Math.min(N-1,curIdx+1800));else{simMs+=dt*Number(speed);const target=TICKS[0].t+simMs;let i=curIdx+1;while(i<N&&TICKS[i].t<=target){applyTick(i);i++}}if(curIdx>=N-1){stop();return}requestAnimationFrame(frame)}
+function stepMinute(){if(!N)return;stop();const target=TICKS[curIdx].t+60000;let i=curIdx+1;while(i<N&&TICKS[i].t<target)i++;seekTo(Math.min(N-1,i))}
+function snapshot(){if(curIdx<0)return null;return{epoch:TICKS[curIdx].t,time:jstMinute(TICKS[curIdx].t),chartTime:BARS[curBarId].t,barIndex:curBarId,open:o,high:h,low:l,close:c}}
+function barSnapshot(index){const b=BARS[index];if(!b)return null;const epoch=b.t*1000-JST;return{epoch,time:jstMinute(epoch),chartTime:b.t,barIndex:index,open:b.o,high:b.h,low:b.l,close:b.c}}
+function setReplayEnabled(on){$('playBtn').disabled=!on;$('stepBtn').disabled=!on;$('seekBar').disabled=!on}
+function captureEntry(dir){stop();const s=snapshot();if(!s||s.barIndex<1){setStatus('少し再生してからエントリーを記録してください','error');return}direction=dir;entryPoint=s;candidateIndex=Math.max(0,s.barIndex-5);evidence=barSnapshot(candidateIndex);setReplayEnabled(false);renderCapture();refreshMarkers()}
+function moveCandidate(delta){if(!entryPoint)return;candidateIndex=Math.max(0,Math.min(entryPoint.barIndex-1,candidateIndex+delta));evidence=barSnapshot(candidateIndex);renderCapture();refreshMarkers()}
+function resetDraft(){entryPoint=null;evidence=null;candidateIndex=-1;direction='';if(N)setReplayEnabled(true);renderCapture();refreshMarkers()}
+function renderCapture(){const reviewing=Boolean(entryPoint);$('evidenceButtons').style.display=reviewing?'none':'grid';$('pendingPanel').classList.toggle('show',reviewing);$('longEvidence').disabled=!N;$('shortEvidence').disabled=!N;$('phase1').className='phase '+(reviewing?'done':'active');$('phase2').className='phase '+(reviewing?'active':'');$('phase3').className='phase '+(reviewing?'active':'');if(!reviewing){$('captureHeading').textContent='現在足を「エントリー」として記録';$('captureHint').textContent='逆張りは後から選択';return}const isLong=direction==='long';$('captureHeading').textContent='過去の逆張り足をボタンで選択';$('captureHint').textContent='ドラッグ不要｜2点間は自動解析';$('pendingTitle').textContent=`${isLong?'LONG':'SHORT'}エントリー ${entryPoint.time.replace('T',' ')}｜逆張り候補 ${evidence.time.replace('T',' ')}`;$('pendingMeta').textContent=`候補 O ${evidence.open.toFixed(3)} / H ${evidence.high.toFixed(3)} / L ${evidence.low.toFixed(3)} / C ${evidence.close.toFixed(3)}`;$('entryBtn').className='entryButton '+direction;$('entryBtn').textContent=`この足を逆張りとして${isLong?'LONG':'SHORT'}を保存`}
+function reasons(){return[...document.querySelectorAll('#reasonChips input:checked')].map(x=>x.value)}
+function strength(){return document.querySelector('input[name=strength]:checked')?.value||'normal'}
 
-function ensureChart(){
-  if(chart)return;
-  chart=LightweightCharts.createChart($('chart'),{autoSize:true,layout:{background:{color:'#fff'},textColor:'#263746'},grid:{vertLines:{color:'#edf2f4'},horzLines:{color:'#edf2f4'}},timeScale:{timeVisible:true,secondsVisible:false,borderColor:'#d5e0e5'},rightPriceScale:{borderColor:'#d5e0e5',scaleMargins:{top:.1,bottom:.1}},handleScroll:{vertTouchDrag:false}});
-  series=chart.addCandlestickSeries({upColor:'#26a69a',downColor:'#ef5350',borderUpColor:'#26a69a',borderDownColor:'#ef5350',wickUpColor:'#26a69a',wickDownColor:'#ef5350',priceFormat:{type:'price',precision:3,minMove:.001},title:'USDJPY'});
-  smaSeries=chart.addLineSeries({color:'#06b6d4',lineWidth:2,priceLineVisible:false,lastValueVisible:true,title:'SMA75'});
-  chart.subscribeClick(param=>{if(!param.time||!BARS.length)return;const bar=BARS.find(x=>x.t===Number(param.time));if(!bar||bar.i>curBarId)return;selectBar(bar);});
-}
+async function registerDevice(){const code=prompt('この端末を登録する数字コードを入力してください');if(!code)return'';const r=await fetch(`${API}/api/register-device`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({code,label:'逆張り否定ラボ'})}),j=await r.json();if(!r.ok||!j.token)throw new Error(j.error||'端末登録に失敗しました');localStorage.setItem(TOKEN_KEY,j.token);return j.token}
+async function token(required=false){let t=localStorage.getItem(TOKEN_KEY)||'';if(!t&&required)t=await registerDevice();return t}
+async function apiFetch(path,opt={},required=true){let t=await token(required);if(!t)throw new Error('端末登録が必要です');let r=await fetch(API+path,{...opt,headers:{...(opt.headers||{}),Authorization:`Bearer ${t}`}});if(r.status===401&&required){localStorage.removeItem(TOKEN_KEY);t=await registerDevice();r=await fetch(API+path,{...opt,headers:{...(opt.headers||{}),Authorization:`Bearer ${t}`}})}return r}
+async function loadMonthRecords(required=false){try{if(!localStorage.getItem(TOKEN_KEY)&&!required){monthSequences=[];reviewedDays=[];updateMetrics();return}const b=monthBounds($('monthSel').value),r=await apiFetch(`/api/countertrend-sequences?from=${b.from}&to=${b.to}`,{},required),j=await r.json();if(!r.ok||!j.ok)throw new Error(j.error||'保存済み記録を取得できません');monthSequences=j.sequences||[];reviewedDays=j.reviewed_days||[];renderSequences();refreshMarkers();updateMetrics()}catch(e){setStatus(e.message||'保存済み記録を取得できません','error')}}
+async function saveSequence(){stop();if(!evidence||!entryPoint)return;$('entryBtn').disabled=true;const body={pair:PAIR,session_date:currentDate,range_start_jst:rangeStart,range_end_jst:rangeEnd,direction,evidence_epoch_ms:evidence.epoch,evidence_time_jst:evidence.time,evidence:{open:evidence.open,high:evidence.high,low:evidence.low,close:evidence.close},entry_epoch_ms:entryPoint.epoch,entry_time_jst:entryPoint.time,entry:{open:entryPoint.open,high:entryPoint.high,low:entryPoint.low,close:entryPoint.close},strength:strength(),reasons:reasons(),note:$('noteInput').value};try{const r=await apiFetch('/api/countertrend-sequences',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)},true),j=await r.json();if(!r.ok||!j.ok)throw new Error(j.error||'保存できません');const i=monthSequences.findIndex(x=>x.id===j.sequence.id);if(i>=0)monthSequences[i]=j.sequence;else monthSequences.push(j.sequence);setStatus(`${j.sequence.entry_time_jst.replace('T',' ')}のエントリーを保存しました`,'ok');$('noteInput').value='';document.querySelectorAll('#reasonChips input').forEach(x=>x.checked=false);resetDraft();renderSequences();updateMetrics()}catch(e){setStatus(e.message||'保存できません','error')}finally{$('entryBtn').disabled=false}}
+async function deleteSequence(id){if(!confirm('このエントリー記録を削除しますか？'))return;try{const r=await apiFetch('/api/countertrend-sequences/delete',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sequence_id:id})},true),j=await r.json();if(!r.ok||!j.ok)throw new Error(j.error||'削除できません');monthSequences=monthSequences.filter(x=>x.id!==id);renderSequences();refreshMarkers();updateMetrics();setStatus('記録を削除しました','ok')}catch(e){setStatus(e.message||'削除できません','error')}}
+async function completeDay(){try{const r=await apiFetch('/api/countertrend-review-days',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({session_date:currentDate,range_start_jst:rangeStart,range_end_jst:rangeEnd})},true),j=await r.json();if(!r.ok||!j.ok)throw new Error(j.error||'完了を保存できません');const i=reviewedDays.findIndex(x=>x.session_date===currentDate),row={session_date:currentDate,range_start_jst:rangeStart,range_end_jst:rangeEnd,completed_at:j.completed_at};if(i>=0)reviewedDays[i]=row;else reviewedDays.push(row);updateMetrics();setStatus(`${currentDate}を確認済みにしました`,'ok')}catch(e){setStatus(e.message||'完了を保存できません','error')}}
 
-async function loadManifest(){const r=await fetch('../tick_replay/data/USDJPY/manifest.json',{cache:'no-store'});if(!r.ok)throw new Error('データ一覧を取得できません');return r.json();}
-async function fetchDay(date){const r=await fetch(`../tick_replay/data/USDJPY/${date}.json`,{cache:'no-store'});if(!r.ok)return null;return r.json();}
+function daySequences(){if(!rangeStart||!rangeEnd)return[];const a=jstEpoch(rangeStart),b=jstEpoch(rangeEnd);return monthSequences.filter(x=>x.evidence_epoch_ms>=a&&x.evidence_epoch_ms<b)}
+function renderSequences(){const rows=daySequences().sort((a,b)=>a.evidence_epoch_ms-b.evidence_epoch_ms);if(!rows.length){$('sequenceList').innerHTML='<div class="empty">まだ登録されていません。該当なしでも確認完了を保存できます。</div>';return}$('sequenceList').innerHTML=rows.map(x=>`<div class="item"><span class="dir ${x.direction}">${x.direction==='long'?'LONG':'SHORT'}</span><div><b>逆張り ${x.evidence_time_jst.replace('T',' ')} → エントリー ${x.entry_time_jst.replace('T',' ')}</b><span>${x.direction==='long'?'高値の売り逆張りを否定':'安値の買い逆張りを否定'}${x.note?'｜'+escapeHtml(x.note):''}</span></div><button onclick="deleteSequence('${x.id}')">削除</button></div>`).join('')}
+function updateMetrics(){if(!manifest)return;const ds=monthDates($('monthSel').value),done=new Set(reviewedDays.map(x=>x.session_date));$('reviewedMetric').textContent=`${ds.filter(d=>done.has(d)).length} / ${ds.length}`;$('monthMetric').textContent=`${monthSequences.length}件`;$('dayMetric').textContent=`${daySequences().length}件`;const d=done.has(currentDate);$('completeBtn').classList.toggle('done',d);$('completeBtn').textContent=d?'この日は確認済み':'この日の確認を完了'}
+function refreshMarkers(){if(!series||!BARS.length)return;const m=[];for(const x of daySequences()){m.push({time:Math.floor((x.evidence_epoch_ms+JST)/60000),position:x.direction==='long'?'aboveBar':'belowBar',color:'#f3a512',shape:'circle',text:'逆張り'});m.push({time:Math.floor((x.entry_epoch_ms+JST)/60000),position:x.direction==='long'?'belowBar':'aboveBar',color:x.direction==='long'?'#0caaa0':'#df5260',shape:x.direction==='long'?'arrowUp':'arrowDown',text:x.direction==='long'?'LONG':'SHORT'})}if(entryPoint){m.push({time:evidence.chartTime,position:direction==='long'?'aboveBar':'belowBar',color:'#f3a512',shape:'circle',text:'逆張り候補'});m.push({time:entryPoint.chartTime,position:direction==='long'?'belowBar':'aboveBar',color:direction==='long'?'#0caaa0':'#df5260',shape:direction==='long'?'arrowUp':'arrowDown',text:'ENTRY'})}m.sort((a,b)=>a.time-b.time);series.setMarkers(m)}
 
-function availableDatesForMonth(month){return manifest.dates.filter(d=>d.startsWith(month)&&d>='2026-01-01'&&d<='2026-10-31');}
-function populateMonths(){
-  const months=[...new Set(manifest.dates.filter(d=>d>='2026-01-01'&&d<='2026-10-31').map(d=>d.slice(0,7)))];
-  $('monthSel').innerHTML=months.map(m=>`<option value="${m}">${m.replace('-','年')}月</option>`).join('');
-  $('monthSel').value=months.includes('2026-01')?'2026-01':months[0];
-  populateDates();
-}
-function populateDates(){
-  const month=$('monthSel').value;const dates=availableDatesForMonth(month);const old=$('dateSel').value;
-  $('dateSel').innerHTML=dates.map(d=>`<option value="${d}">${d}</option>`).join('');
-  if(dates.includes(old))$('dateSel').value=old;
-  updateMetrics();
-}
-function sessionRange(){
-  const date=$('dateSel').value;const [start,end]=$('sessionSel').value.split('|');
-  const startText=`${date}T${start}`;
-  const endText=end==='24:00'?`${addDays(date,1)}T00:00`:`${date}T${end}`;
-  return{date,start:startText,end:endText,startMs:jstInputToEpoch(startText),endMs:jstInputToEpoch(endText)};
-}
-
-function makeBars(ticks){
-  const out=[];let minute=null,bar=null;
-  for(let i=0;i<ticks.length;i++){
-    const t=Math.floor((ticks[i].t+JST_OFFSET_MS)/60000)*60;
-    if(t!==minute){bar={t,o:ticks[i].m,h:ticks[i].m,l:ticks[i].m,c:ticks[i].m,s:i,i:out.length};out.push(bar);minute=t;}
-    else{bar.h=Math.max(bar.h,ticks[i].m);bar.l=Math.min(bar.l,ticks[i].m);bar.c=ticks[i].m;}
-    ticks[i].g=out.length-1;
-  }
-  return out;
-}
-function barData(bar){return{time:bar.t,open:bar.o,high:bar.h,low:bar.l,close:bar.c};}
-function smaData(limit){
-  const data=[],window=[];let sum=0;
-  for(let i=0;i<=limit&&i<BARS.length;i++){window.push(BARS[i].c);sum+=BARS[i].c;if(window.length>75)sum-=window.shift();if(window.length===75)data.push({time:BARS[i].t,value:sum/75});}
-  return data;
-}
-
-async function loadRange(){
-  if(!manifest)return;stop();const r=sessionRange();currentDate=r.date;rangeStart=r.start;rangeEnd=r.end;algoVisible=false;selectedBar=null;selectedType='';renderSelection();
-  setStatus('ティックデータを読み込み中...');$('loadBtn').disabled=true;
-  try{
-    const dates=[];const currentPos=manifest.dates.indexOf(r.date);if(currentPos>0)dates.push(manifest.dates[currentPos-1]);dates.push(r.date);if(r.end.slice(0,10)!==r.date&&manifest.dates.includes(r.end.slice(0,10)))dates.push(r.end.slice(0,10));
-    const payloads=await Promise.all([...new Set(dates)].map(fetchDay));const ticks=[],analysisTicks=[];const analysisStart=r.startMs-60*60*1000;
-    for(const p of payloads.filter(Boolean)){for(let i=0;i<p.t.length;i++){if(p.t[i]>=analysisStart&&p.t[i]<r.endMs){const b=p.b[i],a=p.a[i],tick={t:p.t[i],b,a,m:Math.round((b+a)/2*1000)/1000};analysisTicks.push({...tick});if(p.t[i]>=r.startMs)ticks.push(tick);}}}
-    ticks.sort((a,b)=>a.t-b.t);analysisTicks.sort((a,b)=>a.t-b.t);if(!ticks.length)throw new Error('この時間帯にはティックがありません');
-    TICKS=ticks;N=ticks.length;BARS=makeBars(TICKS);const analysisBars=makeBars(analysisTicks);const visibleStart=Math.floor((r.startMs+JST_OFFSET_MS)/60000)*60;algoSignals=detectCurrentRule(analysisBars).filter(x=>x.t>=visibleStart);
-    ensureChart();series.setData([]);smaSeries.setData([]);curIdx=-1;curBarId=-1;seekTo(0);chart.timeScale().fitContent();
-    $('playBtn').disabled=false;$('stepBtn').disabled=false;$('seekBar').disabled=false;$('completeBtn').disabled=false;$('revealBtn').disabled=false;
-    $('blindLabel').textContent='ブラインド判定中｜現行ルールの印は非表示';$('revealBtn').textContent='記録後に現行ルールを表示';$('compareBox').style.display='none';
-    setStatus(`${r.start.replace('T',' ')}〜${r.end.replace('T',' ')}　${N.toLocaleString()}ティック／${BARS.length.toLocaleString()}本`,'ok');
-    renderLabels();refreshMarkers();updateMetrics();
-  }catch(e){setStatus(e.message||'読み込みに失敗しました','error');}
-  finally{$('loadBtn').disabled=false;}
-}
-
-function seekTo(index){
-  if(!N)return;index=Math.max(0,Math.min(N-1,index));const targetBar=TICKS[index].g;const completed=BARS.slice(0,targetBar).map(barData);series.setData(completed);
-  const start=BARS[targetBar].s;o=TICKS[start].m;h=o;l=o;c=o;for(let i=start;i<=index;i++){const m=TICKS[i].m;h=Math.max(h,m);l=Math.min(l,m);c=m;}
-  curIdx=index;curBarId=targetBar;series.update({time:BARS[targetBar].t,open:o,high:h,low:l,close:c});smaSeries.setData(smaData(targetBar));simMs=TICKS[index].t-TICKS[0].t;renderTick();refreshMarkers();
-}
-function applyTick(index){
-  const tk=TICKS[index];const g=tk.g;if(g!==curBarId){curBarId=g;o=tk.m;h=o;l=o;c=o;}else{h=Math.max(h,tk.m);l=Math.min(l,tk.m);c=tk.m;}
-  curIdx=index;series.update({time:BARS[g].t,open:o,high:h,low:l,close:c});if(g!==TICKS[Math.max(0,index-1)].g)smaSeries.setData(smaData(g));renderTick();
-}
-function renderTick(){const tk=TICKS[curIdx];$('curTime').textContent=jstDisplay(tk.t);$('curBid').textContent=tk.b.toFixed(3);$('curAsk').textContent=tk.a.toFixed(3);$('curProgress').textContent=`${(curIdx+1).toLocaleString()} / ${N.toLocaleString()}`;$('seekBar').value=N>1?Math.round(curIdx/(N-1)*1000):0;}
-function play(){if(!N)return;if(playing){stop();return;}playing=true;lastFrame=null;$('playBtn').textContent='Ⅱ 一時停止';requestAnimationFrame(frame);}
-function stop(){playing=false;$('playBtn').textContent='▶ 再生';lastFrame=null;}
-function frame(now){
-  if(!playing)return;const dt=lastFrame===null?0:now-lastFrame;lastFrame=now;const speed=$('speedSel').value;
-  if(speed==='max'){seekTo(Math.min(N-1,curIdx+1800));}
-  else{simMs+=dt*Number(speed);const target=TICKS[0].t+simMs;let i=curIdx+1;while(i<N&&TICKS[i].t<=target){applyTick(i);i++;}}
-  if(curIdx>=N-1){stop();return;}requestAnimationFrame(frame);
-}
-function stepMinute(){if(!N)return;stop();const target=TICKS[curIdx].t+60000;let i=curIdx+1;while(i<N&&TICKS[i].t<target)i++;seekTo(Math.min(N-1,i));}
-
-function selectBar(bar){selectedBar=bar;selectedType='';renderSelection();refreshMarkers();}
-function renderSelection(){
-  if(!selectedBar){$('selectedTime').textContent='チャートの足をタップ';$('selectedOhlc').textContent='再生済みのローソク足から選べます。';$('highSellBtn').disabled=true;$('lowBuyBtn').disabled=true;$('saveBtn').disabled=true;$('clearSelectionBtn').disabled=true;return;}
-  const epoch=selectedBar.t*1000-JST_OFFSET_MS;$('selectedTime').textContent=jstDisplay(epoch);$('selectedOhlc').textContent=`O ${selectedBar.o.toFixed(3)} / H ${selectedBar.h.toFixed(3)} / L ${selectedBar.l.toFixed(3)} / C ${selectedBar.c.toFixed(3)}`;
-  $('highSellBtn').disabled=false;$('lowBuyBtn').disabled=false;$('saveBtn').disabled=!selectedType;$('clearSelectionBtn').disabled=false;$('highSellBtn').classList.toggle('active',selectedType==='high_sell');$('lowBuyBtn').classList.toggle('active',selectedType==='low_buy');
-}
-function chooseType(type){selectedType=type;renderSelection();}
-function clearSelection(){selectedBar=null;selectedType='';renderSelection();refreshMarkers();}
-function chosenReasons(){return[...document.querySelectorAll('#reasonChips input:checked')].map(x=>x.value);}
-function chosenStrength(){return document.querySelector('input[name=strength]:checked')?.value||'normal';}
-
-async function registerDevice(){
-  const code=prompt('この端末を登録する数字コードを入力してください');if(!code)return'';
-  const r=await fetch(`${API}/api/register-device`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({code,label:'逆張り感覚ラボ'})});const j=await r.json();if(!r.ok||!j.token)throw new Error(j.error||'端末登録に失敗しました');localStorage.setItem(TOKEN_KEY,j.token);return j.token;
-}
-async function token(required=false){let value=localStorage.getItem(TOKEN_KEY)||'';if(!value&&required)value=await registerDevice();return value;}
-async function apiFetch(path,options={},required=true){
-  let t=await token(required);if(!t)throw new Error('端末登録が必要です');const headers={...(options.headers||{}),Authorization:`Bearer ${t}`};let r=await fetch(`${API}${path}`,{...options,headers});
-  if(r.status===401&&required){localStorage.removeItem(TOKEN_KEY);t=await registerDevice();r=await fetch(`${API}${path}`,{...options,headers:{...(options.headers||{}),Authorization:`Bearer ${t}`}});}return r;
-}
-
-async function loadMonthRecords(required=false){
-  try{if(!localStorage.getItem(TOKEN_KEY)&&!required){monthLabels=[];reviewedDays=[];updateMetrics();return;}const b=monthBounds($('monthSel').value);const r=await apiFetch(`/api/countertrend-labels?from=${b.from}&to=${b.to}`,{},required);const j=await r.json();if(!r.ok||!j.ok)throw new Error(j.error||'保存済み判定を取得できません');monthLabels=j.labels||[];reviewedDays=j.reviewed_days||[];renderLabels();refreshMarkers();updateMetrics();}
-  catch(e){setStatus(e.message||'保存済み判定を取得できません','error');}
-}
-async function saveLabel(){
-  if(!selectedBar||!selectedType)return;const epoch=selectedBar.t*1000-JST_OFFSET_MS;const body={pair:PAIR,session_date:currentDate,range_start_jst:rangeStart,range_end_jst:rangeEnd,bar_epoch_ms:epoch,bar_time_jst:jstMinute(epoch),label_type:selectedType,strength:chosenStrength(),open:selectedBar.o,high:selectedBar.h,low:selectedBar.l,close:selectedBar.c,reasons:chosenReasons(),note:$('noteInput').value};
-  $('saveBtn').disabled=true;try{const r=await apiFetch('/api/countertrend-labels',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)},true);const j=await r.json();if(!r.ok||!j.ok)throw new Error(j.error||'保存できません');const pos=monthLabels.findIndex(x=>x.id===j.label.id);if(pos>=0)monthLabels[pos]=j.label;else monthLabels.push(j.label);$('noteInput').value='';document.querySelectorAll('#reasonChips input').forEach(x=>x.checked=false);setStatus(`${j.label.bar_time_jst.replace('T',' ')}の判定を保存しました`,'ok');clearSelection();renderLabels();refreshMarkers();updateMetrics();}
-  catch(e){setStatus(e.message||'保存できません','error');renderSelection();}
-}
-async function deleteLabel(id){if(!confirm('この判定を削除しますか？'))return;try{const r=await apiFetch('/api/countertrend-labels/delete',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({label_id:id})},true);const j=await r.json();if(!r.ok||!j.ok)throw new Error(j.error||'削除できません');monthLabels=monthLabels.filter(x=>x.id!==id);renderLabels();refreshMarkers();updateMetrics();setStatus('判定を削除しました','ok');}catch(e){setStatus(e.message||'削除できません','error');}}
-async function completeDay(){try{const r=await apiFetch('/api/countertrend-review-days',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({session_date:currentDate,range_start_jst:rangeStart,range_end_jst:rangeEnd})},true);const j=await r.json();if(!r.ok||!j.ok)throw new Error(j.error||'完了を保存できません');const old=reviewedDays.findIndex(x=>x.session_date===currentDate);const row={session_date:currentDate,range_start_jst:rangeStart,range_end_jst:rangeEnd,completed_at:j.completed_at};if(old>=0)reviewedDays[old]=row;else reviewedDays.push(row);updateMetrics();setStatus(`${currentDate}を確認済みにしました`,'ok');}catch(e){setStatus(e.message||'完了を保存できません','error');}}
-
-function dayLabels(){if(!rangeStart||!rangeEnd)return[];const from=jstInputToEpoch(rangeStart),to=jstInputToEpoch(rangeEnd);return monthLabels.filter(x=>x.bar_epoch_ms>=from&&x.bar_epoch_ms<to);}
-function renderLabels(){
-  const rows=dayLabels().sort((a,b)=>a.bar_epoch_ms-b.bar_epoch_ms);if(!rows.length){$('labelList').innerHTML='<div class="empty">まだ保存されていません。判定がない日も「この日の確認を完了する」で記録できます。</div>';return;}
-  const reasons={long_wick:'長い髭',round_number:'キリ番',recent_extreme:'直近高安',h1_extreme:'1時間足高安',rapid_move:'急騰・急落',repeated_rejection:'複数回反発',trend_context:'流れ・地合い',other:'その他'};const strength={weak:'弱い',normal:'普通',strong:'強い'};
-  $('labelList').innerHTML=rows.map(x=>`<div class="labelItem"><span class="tag ${x.label_type==='high_sell'?'high':'low'}">${x.label_type==='high_sell'?'高値で売り':'安値で買い'}</span><div class="labelMeta"><b>${x.bar_time_jst.replace('T',' ')}｜${strength[x.strength]||x.strength}</b><div>${(x.reasons||[]).map(r=>reasons[r]||r).join('・')||'理由未選択'}${x.note?`｜${escapeHtml(x.note)}`:''}</div></div><button onclick="deleteLabel('${x.id}')">削除</button></div>`).join('');
-}
-function updateMetrics(){
-  if(!manifest)return;const month=$('monthSel').value,dates=availableDatesForMonth(month),reviewed=new Set(reviewedDays.map(x=>x.session_date));$('reviewedMetric').textContent=`${dates.filter(d=>reviewed.has(d)).length} / ${dates.length}`;$('reviewProgress').style.width=`${dates.length?dates.filter(d=>reviewed.has(d)).length/dates.length*100:0}%`;$('monthLabelMetric').textContent=`${monthLabels.length}件`;$('dayLabelMetric').textContent=`${dayLabels().length}件`;
-  const done=reviewed.has(currentDate);$('completeBtn').classList.toggle('done',done);$('completeBtn').textContent=done?'この日は確認済み（再保存できます）':'この日の確認を完了する';
-}
-function escapeHtml(value){return String(value).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
-
-function detectCurrentRule(bars){
-  const out=[];for(let i=30;i<bars.length;i++){const prior=bars.slice(i-30,i);const hi=Math.max(...prior.map(x=>x.h)),lo=Math.min(...prior.map(x=>x.l)),bar=bars[i];if(bar.h>=hi+.005&&bar.c<=hi&&(bar.h-bar.c)>=.05)out.push({t:bar.t,type:'high_sell'});if(bar.l<=lo-.005&&bar.c>=lo&&(bar.c-bar.l)>=.05)out.push({t:bar.t,type:'low_buy'});}return out;
-}
-function revealAlgorithm(){algoVisible=!algoVisible;$('blindLabel').textContent=algoVisible?'照合表示中｜自分の判定と現行ルールを重ねています':'ブラインド判定中｜現行ルールの印は非表示';$('revealBtn').textContent=algoVisible?'現行ルールを隠す':'記録後に現行ルールを表示';$('compareBox').style.display=algoVisible?'block':'none';refreshMarkers();if(algoVisible)renderComparison();}
-function refreshMarkers(){
-  if(!series||!BARS.length)return;const markers=[];for(const x of dayLabels()){const t=Math.floor((x.bar_epoch_ms+JST_OFFSET_MS)/60000);markers.push({time:t,position:x.label_type==='high_sell'?'aboveBar':'belowBar',color:x.label_type==='high_sell'?'#0f9f95':'#7456d8',shape:x.label_type==='high_sell'?'arrowDown':'arrowUp',text:`自分 ${x.strength==='strong'?'強':x.strength==='weak'?'弱':'普'}`});}
-  if(algoVisible){for(const x of algoSignals)markers.push({time:x.t,position:x.type==='high_sell'?'aboveBar':'belowBar',color:'#f59e0b',shape:'circle',text:'現行'});}
-  if(selectedBar)markers.push({time:selectedBar.t,position:'inBar',color:'#2878d0',shape:'square',text:'選択'});markers.sort((a,b)=>a.time-b.time);series.setMarkers(markers);
-}
-function renderComparison(){
-  const human=dayLabels().map(x=>({t:Math.floor((x.bar_epoch_ms+JST_OFFSET_MS)/60000),type:x.label_type}));const used=new Set();let match=0;for(const h of human){let best=-1,dist=Infinity;for(let i=0;i<algoSignals.length;i++){if(used.has(i)||algoSignals[i].type!==h.type)continue;const d=Math.abs(algoSignals[i].t-h.t);if(d<=60&&d<dist){best=i;dist=d;}}if(best>=0){used.add(best);match++;}}
-  $('cmpHuman').textContent=human.length;$('cmpAlgo').textContent=algoSignals.length;$('cmpMatch').textContent=match;$('cmpHumanOnly').textContent=human.length-match;$('cmpAlgoOnly').textContent=algoSignals.length-match;
-}
-
-async function init(){
-  ensureChart();try{manifest=await loadManifest();populateMonths();await loadMonthRecords(false);await loadRange();}catch(e){setStatus(e.message||'初期化に失敗しました','error');}
-}
-$('monthSel').addEventListener('change',async()=>{populateDates();monthLabels=[];reviewedDays=[];await loadMonthRecords(false);});
-$('loadBtn').addEventListener('click',loadRange);$('playBtn').addEventListener('click',play);$('stepBtn').addEventListener('click',stepMinute);$('seekBar').addEventListener('input',e=>{if(N)seekTo(Math.round(Number(e.target.value)/1000*(N-1)));});
-$('highSellBtn').addEventListener('click',()=>chooseType('high_sell'));$('lowBuyBtn').addEventListener('click',()=>chooseType('low_buy'));$('clearSelectionBtn').addEventListener('click',clearSelection);$('saveBtn').addEventListener('click',saveLabel);$('completeBtn').addEventListener('click',completeDay);$('revealBtn').addEventListener('click',revealAlgorithm);
-init();
+async function init(){ensureChart();try{const r=await fetch('../tick_replay/data/USDJPY/manifest.json',{cache:'no-store'});if(!r.ok)throw new Error('データ一覧を取得できません');manifest=await r.json();populateMonths();await loadMonthRecords(false);await loadRange(false)}catch(e){setStatus(e.message||'初期化に失敗しました','error')}}
+$('monthSel').addEventListener('change',async()=>{populateDates();monthSequences=[];reviewedDays=[];await loadMonthRecords(false)});$('loadBtn').addEventListener('click',()=>loadRange(true));$('playBtn').addEventListener('click',play);$('stepBtn').addEventListener('click',stepMinute);$('seekBar').addEventListener('input',e=>{if(N)seekTo(Math.round(Number(e.target.value)/1000*(N-1)))});$('longEvidence').addEventListener('click',()=>captureEntry('long'));$('shortEvidence').addEventListener('click',()=>captureEntry('short'));document.querySelectorAll('.candidateNav button').forEach(b=>b.addEventListener('click',()=>moveCandidate(Number(b.dataset.move))));$('entryBtn').addEventListener('click',saveSequence);$('resetBtn').addEventListener('click',resetDraft);$('completeBtn').addEventListener('click',completeDay);init();
 </script>
 </body>
 </html>
