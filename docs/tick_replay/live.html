@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
 <title>リアルタイム USDJPY</title>
 <script src="vendor/lightweight-charts.standalone.production.js"></script>
+<script src="live-signal.js?v=20261126"></script>
 <style>
 *{box-sizing:border-box}
 body{font-family:"Yu Gothic UI","Hiragino Sans",Meiryo,sans-serif;margin:0;background:#eef2f7;color:#1e293b;-webkit-text-size-adjust:100%}
@@ -20,6 +21,19 @@ button,.buttonLink{display:inline-flex;align-items:center;justify-content:center
 .indicatorBar{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin:8px 0 2px;padding:10px 12px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:9px}.indicatorToggle{display:inline-flex;align-items:center;gap:8px;font-weight:600;color:#1e293b;cursor:pointer}.indicatorToggle input{width:19px;height:19px;accent-color:#0891b2}.smaSwatch{width:26px;height:3px;border-radius:2px;background:#06b6d4}.periodControl{display:inline-flex;align-items:center;gap:7px}.periodControl input{width:86px;text-align:center}.indicatorState{margin-left:auto;color:#64748b;font-size:12px}
 .stats{display:flex;gap:10px;flex-wrap:wrap;margin-top:14px}.stat{flex:1 1 130px;background:#f1f5f9;border-radius:8px;padding:10px;text-align:center}.stat .label{font-size:11px;color:#64748b}.stat .value{font-size:17px;font-weight:600;margin-top:2px;font-variant-numeric:tabular-nums}.fresh{color:#15803d}.stale{color:#d97706}
 .footnote{font-size:12px;line-height:1.65;color:#64748b;margin:0}.backlink{font-size:13px;color:#2563eb;text-decoration:none}.backlink:hover{text-decoration:underline}
+.signalPanel{margin:0 0 12px;padding:12px 14px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:9px;font-variant-numeric:tabular-nums}
+.signalPanel[hidden]{display:none}
+.signalHeading,.signalRow{display:flex;justify-content:space-between;align-items:baseline;gap:8px}
+.signalHeading h2{font-size:15px;margin:0}
+.speedWindow,.signalDetail{font-size:12px;color:#475569;line-height:1.5}
+.speedStats{margin:7px 0 8px;display:flex;flex-wrap:wrap;gap:4px 14px;font-size:13px}
+.speedStats strong{color:#1e293b}.speedStats .buy{color:#a12839}.speedStats .sell{color:#194d90}
+.signalRow{padding:7px 0;border-top:1px solid #e2e8f0}
+.signalRow strong{font-size:13px}.signalRow .buy{color:#a12839}.signalRow .sell{color:#194d90}
+.signalRow > div{display:flex;flex-wrap:wrap;gap:3px 9px;align-items:baseline}
+.signalBadge{font-size:12px;color:#475569;font-weight:680}.signalBadge[data-status="pending"],.signalBadge[data-status="confirm-close"]{color:#85500c}.signalBadge[data-status="triggered"]{background:#dcfce7;color:#166534;padding:2px 6px;border-radius:4px}.signalBadge[data-status="filtered"],.signalBadge[data-status="cooldown"]{color:#9f2937}
+.signalDetail{text-align:right}.signalFoot{margin:4px 0 0;color:#475569;font-size:11px}
+@media(max-width:640px){.signalPanel{padding:10px}.signalRow{display:block}.signalDetail{display:block;text-align:left;margin-top:2px}.speedWindow{white-space:nowrap}}
 @media(max-width:640px){.wrap{padding:10px}.card{padding:14px;border-radius:10px}h1{font-size:16px}.topline{align-items:stretch}.status{align-self:flex-start}.formrow{flex-direction:column;align-items:stretch}input[type=url]{width:100%;min-width:0}.formrow button{width:100%}#chart{height:390px}.indicatorBar{gap:9px;padding:9px 10px}.indicatorState{flex:1 1 100%;margin-left:0}.periodControl input{width:74px}.stats{gap:6px}.stat{flex:1 1 45%;padding:8px}.stat .value{font-size:15px}.controls select{flex:1}.controls button{flex:1}}
 @media(prefers-reduced-motion:reduce){*{scroll-behavior:auto!important;transition:none!important}}
 </style>
@@ -28,7 +42,7 @@ button,.buttonLink{display:inline-flex;align-items:center;justify-content:center
 <main class="wrap">
   <section class="card">
     <div class="topline">
-      <div><h1 id="pageTitle">リアルタイム　USDJPY</h1><div class="sub">XM MT4のBid/Askを2秒間隔で表示</div></div>
+      <div><h1 id="pageTitle">リアルタイム　USDJPY</h1><div class="sub">XM MT4から受信したBid/Askを表示</div></div>
       <div id="connectionStatus" class="status"><span class="dot"></span><span id="statusText">未接続</span></div>
     </div>
     <div class="formrow">
@@ -40,6 +54,26 @@ button,.buttonLink{display:inline-flex;align-items:center;justify-content:center
   </section>
 
   <section class="card">
+    <section class="signalPanel" id="signalPanel" aria-labelledby="signalTitle">
+      <div class="signalHeading">
+        <h2 id="signalTitle">速度差・再ブレイク</h2><span id="speedWindow" class="speedWindow">確定1分足・直近60分</span>
+      </div>
+      <div class="speedStats">
+        <strong id="speedBias">受信待ち</strong>
+        <span class="buy">上昇 <strong id="speedUp">—</strong></span>
+        <span class="sell">下落 <strong id="speedDown">—</strong></span>
+        <span>速度差 <strong id="speedDiff">—</strong> pips/本</span>
+      </div>
+      <div class="signalRow">
+        <div><strong class="buy">買い</strong><span id="longState" class="signalBadge">受信待ち</span></div>
+        <span id="longDetail" class="signalDetail"></span>
+      </div>
+      <div class="signalRow">
+        <div><strong class="sell">売り</strong><span id="shortState" class="signalBadge">受信待ち</span></div>
+        <span id="shortDetail" class="signalDetail"></span>
+      </div>
+      <p class="signalFoot">受信したBidの1分足で判定。速度差の計算には確定足が45本以上必要です。</p>
+    </section>
     <div class="indicatorBar" aria-label="チャート指標設定">
       <span class="smaSwatch" aria-hidden="true"></span>
       <label class="indicatorToggle"><input type="checkbox" id="smaToggle" checked> SMAを表示</label>
@@ -68,7 +102,7 @@ button,.buttonLink{display:inline-flex;align-items:center;justify-content:center
 
   <section class="card">
     <p class="footnote">レート配信には、XMへ接続したMT4と送信EAの稼働が必要です。画面を離れて復帰した場合は直近の1分足を再取得します。チャートは閲覧用で、注文は発注しません。</p>
-    <p><a class="backlink" href="./">← ティックリプレイへ戻る</a></p>
+    <p><a class="backlink" id="replayBackLink" href="./">← ティックリプレイへ戻る</a></p>
   </section>
 </main>
 
@@ -76,8 +110,12 @@ button,.buttonLink{display:inline-flex;align-items:center;justify-content:center
 const PAIR='USDJPY', INVERSE_PAIR='JPYUSD', INVERSE_UNIT=100;
 const ENDPOINT_KEY='usdjpyLiveFeedEndpoint';
 const DEFAULT_ENDPOINT='https://usdjpy-live-feed.nemomasa01222.workers.dev';
-let displayPair=PAIR, bars=[], latest=null, socket=null, reconnectTimer=null, heartbeatTimer=null;
-let smaOn=true, smaPeriod=20;
+const params=new URLSearchParams(location.search);
+const REPLAY_VIEW_KEYS=['start','end','pair','sma','sma_on'];
+let displayPair=params.get('pair')===INVERSE_PAIR?INVERSE_PAIR:PAIR;
+let bars=[], latest=null, socket=null, reconnectTimer=null, heartbeatTimer=null;
+let smaOn=params.get('sma_on')!=='0', smaPeriod=Math.max(2,Math.min(500,Math.round(Number(params.get('sma'))||20)));
+let signalContext=null, signalDisplayKey=null, connectedEndpoint='', connectRequest=0;
 
 const chart=LightweightCharts.createChart(document.getElementById('chart'),{
   layout:{background:{color:'#ffffff'},textColor:'#334155'},
@@ -98,6 +136,67 @@ function displayPrice(value){return displayPair===INVERSE_PAIR?INVERSE_UNIT/valu
 function displayBar(bar){if(displayPair===INVERSE_PAIR)return{time:bar.time,open:INVERSE_UNIT/bar.open,high:INVERSE_UNIT/bar.low,low:INVERSE_UNIT/bar.high,close:INVERSE_UNIT/bar.close};return{...bar}}
 function tickAge(){return latest?Date.now()-latest.ts:Infinity}
 function formatJst(ts){return new Intl.DateTimeFormat('ja-JP',{timeZone:'Asia/Tokyo',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:false}).format(new Date(ts))}
+const jstMinute=new Intl.DateTimeFormat('ja-JP',{timeZone:'Asia/Tokyo',hour:'2-digit',minute:'2-digit',hourCycle:'h23'});
+
+function setSignalRow(side, status, title, detail=''){
+  const badge=document.getElementById(`${side}State`);
+  badge.dataset.status=status;
+  badge.textContent=title;
+  document.getElementById(`${side}Detail`).textContent=detail;
+}
+
+function renderEntry(side, entry, speed){
+  const level=entry.level?.toFixed(3), up=side==='long';
+  if(entry.status==='pending'){
+    const direction=speed.bias===side?'速度一致':speed.ready?'速度と不一致':'速度データ不足';
+    setSignalRow(side,entry.status,'再ブレイク待ち',
+      `${level}まで ${entry.distance.toFixed(1)} pips ／ 残り${entry.minutes}分 ／ ${direction}`);
+  }else if(entry.status==='triggered'){
+    setSignalRow(side,entry.status,'条件成立',`${level}を再ブレイク・速度一致`);
+  }else if(entry.status==='filtered'||entry.status==='insufficient-speed'||entry.status==='cooldown'){
+    const reason={filtered:'速度と不一致','insufficient-speed':'速度データ不足',cooldown:'同方向の間隔が15分未満'};
+    setSignalRow(side,entry.status,'見送り',`${level}を再ブレイク ／ ${reason[entry.status]}`);
+  }else if(entry.status==='confirm-close'){
+    const location=entry.returned?'レンジ内':'レンジ外';
+    setSignalRow(side,entry.status,'1分足の確定待ち',
+      `${location} ／ ${up?'高値から':'安値から'} ${entry.rejectionPips.toFixed(1)} / 5.0 pips`);
+  }else if(entry.status==='waiting'){
+    setSignalRow(side,entry.status,'形待ち',`最初の${up?'上':'下'}抜け ${level}`);
+  }else{
+    setSignalRow(side,entry.status,'履歴待ち','直近30本の確定足が必要です');
+  }
+}
+
+function renderSignal(){
+  document.getElementById('signalPanel').hidden=displayPair!==PAIR;
+  const current=bars.at(-1);
+  const streaming=socket?.readyState===WebSocket.OPEN;
+  const isFresh=streaming&&latest&&tickAge()<10_000&&current?.time===Math.floor(latest.ts/60000)*60;
+  const key=isFresh?`${latest.ts}:${latest.bid}`:latest?'stale':'empty';
+  if(key===signalDisplayKey)return;
+  signalDisplayKey=key;
+  const biasEl=document.getElementById('speedBias'),windowEl=document.getElementById('speedWindow');
+  if(!isFresh){
+    biasEl.className='';
+    biasEl.textContent=latest?'配信待ち':'MT4の初回受信待ち';
+    windowEl.textContent='確定1分足・直近60分';
+    for(const id of ['speedUp','speedDown','speedDiff'])document.getElementById(id).textContent='—';
+    for(const side of ['long','short'])setSignalRow(side,'paused','受信待ち');
+    return;
+  }
+  if(signalContext?.minute!==current.time){
+    signalContext={minute:current.time,data:UsdJpySignal.prepare(bars,current.time)};
+  }
+  const {speed,entries}=UsdJpySignal.evaluate(signalContext.data,current);
+  biasEl.textContent=!speed.ready?'履歴待ち':speed.bias==='long'?'▲ 買い優勢':speed.bias==='short'?'▼ 売り優勢':'中立';
+  biasEl.className=speed.bias==='long'?'buy':speed.bias==='short'?'sell':'';
+  windowEl.textContent=`${jstMinute.format(speed.from*1000)}〜${jstMinute.format(speed.to*1000)} JST ／ ${speed.count}/60本`;
+  document.getElementById('speedUp').textContent=speed.ready?speed.up.toFixed(2):'—';
+  document.getElementById('speedDown').textContent=speed.ready?speed.down.toFixed(2):'—';
+  document.getElementById('speedDiff').textContent=speed.ready?Math.abs(speed.diff).toFixed(2):'—';
+  renderEntry('long',entries.long,speed);
+  renderEntry('short',entries.short,speed);
+}
 
 function sortedBars(){return bars.slice().sort((a,b)=>a.time-b.time).filter((bar,index,array)=>index===0||bar.time!==array[index-1].time)}
 function updateSma(){
@@ -121,53 +220,89 @@ function updateStats(){
   const bidEl=document.getElementById('bidValue'),askEl=document.getElementById('askValue'),fresh=document.getElementById('freshness');
   document.getElementById('bidLabel').textContent=`${displayPair} BID`;document.getElementById('askLabel').textContent=`${displayPair} ASK`;
   document.getElementById('pageTitle').textContent=`リアルタイム　${displayPair}`;
-  if(!latest){bidEl.textContent=askEl.textContent='-';fresh.textContent='-';return}
+  const age=tickAge(),isFresh=age<10_000;
+  if(socket?.readyState===WebSocket.OPEN){
+    setConnection(isFresh?'live':'',isFresh?'LIVE':latest?'配信待ち':'初回受信待ち');
+    const statusMessage=isFresh?'リアルタイムレートを受信中です。'
+      :latest?'MT4からの受信が途切れています。':'MT4からの配信を待っています。';
+    if(document.getElementById('message').textContent!==statusMessage)showMessage(statusMessage,isFresh||!latest?'':'warn');
+  }
+  renderSignal();
+  if(!latest){
+    bidEl.textContent=askEl.textContent=fresh.textContent='-';
+    document.getElementById('spreadValue').textContent=document.getElementById('tickTime').textContent='-';
+    return;
+  }
   const rawBid=displayPair===INVERSE_PAIR?INVERSE_UNIT/latest.ask:latest.bid;
   const rawAsk=displayPair===INVERSE_PAIR?INVERSE_UNIT/latest.bid:latest.ask;
   bidEl.textContent=formatPrice(rawBid);askEl.textContent=formatPrice(rawAsk);
   const spreadPips=displayPair===INVERSE_PAIR?(rawAsk-rawBid)*100000:(latest.ask-latest.bid)*100;
   document.getElementById('spreadValue').textContent=`${spreadPips.toFixed(1)} pips`;
   document.getElementById('tickTime').textContent=formatJst(latest.ts);
-  const age=tickAge();fresh.textContent=age<10_000?'LIVE':age<60_000?`${Math.floor(age/1000)}秒遅延`:'停止';fresh.className='value '+(age<10_000?'fresh':'stale');
+  fresh.textContent=isFresh&&socket?.readyState===WebSocket.OPEN?'LIVE':age<60_000?`${Math.max(0,Math.floor(age/1000))}秒前`:'停止';
+  fresh.className='value '+(isFresh&&socket?.readyState===WebSocket.OPEN?'fresh':'stale');
 }
 function mergeSnapshot(payload){
-  const incoming=Array.isArray(payload.bars)?payload.bars:[];if(payload.current_bar)incoming.push(payload.current_bar);
+  const incoming=Array.isArray(payload.bars)?[...payload.bars]:[];if(payload.current_bar)incoming.push(payload.current_bar);
   const map=new Map(bars.map(bar=>[bar.time,bar]));for(const bar of incoming)if(Number.isFinite(Number(bar.time)))map.set(Number(bar.time),{time:Number(bar.time),open:Number(bar.open),high:Number(bar.high),low:Number(bar.low),close:Number(bar.close)});
-  bars=Array.from(map.values()).sort((a,b)=>a.time-b.time).slice(-1800);if(payload.latest)latest=payload.latest;renderAll(true);
+  bars=Array.from(map.values()).sort((a,b)=>a.time-b.time).slice(-1800);latest=payload.latest||null;
+  signalContext=null;signalDisplayKey=null;renderAll(true);
 }
 function ingestTick(tick){
-  latest={pair:PAIR,ts:Number(tick.ts),bid:Number(tick.bid),ask:Number(tick.ask)};if(!Number.isFinite(latest.bid)||!Number.isFinite(latest.ask))return;
+  const quote={pair:PAIR,ts:Number(tick.ts),bid:Number(tick.bid),ask:Number(tick.ask)};
+  if(![quote.ts,quote.bid,quote.ask].every(Number.isFinite)||quote.ts<=0||quote.bid<=0||quote.ask<quote.bid
+      ||(latest&&quote.ts<latest.ts)||bars.at(-1)?.time>Math.floor(quote.ts/60000)*60)return;
+  latest=quote;
   const minute=Math.floor(latest.ts/60000)*60;let bar=bars.length?bars[bars.length-1]:null;
   if(!bar||bar.time!==minute){bar={time:minute,open:latest.bid,high:latest.bid,low:latest.bid,close:latest.bid};bars.push(bar);if(bars.length>1800)bars.shift();}
   else{bar.high=Math.max(bar.high,latest.bid);bar.low=Math.min(bar.low,latest.bid);bar.close=latest.bid;}
   candles.update(displayBar(bar));updateSma();updateStats();
 }
 async function fetchSnapshot(endpoint){
-  const response=await fetch(`${endpoint}/snapshot?pair=${PAIR}`,{cache:'no-store'});if(!response.ok)throw new Error(`snapshot HTTP ${response.status}`);mergeSnapshot(await response.json());
+  const response=await fetch(`${endpoint}/snapshot?pair=${PAIR}`,{cache:'no-store'});if(!response.ok)throw new Error(`snapshot HTTP ${response.status}`);return response.json();
 }
 function closeSocket(){if(reconnectTimer)clearTimeout(reconnectTimer);reconnectTimer=null;if(heartbeatTimer)clearInterval(heartbeatTimer);heartbeatTimer=null;if(socket){socket.onclose=null;socket.close();socket=null}}
 async function connect(){
   const endpoint=baseEndpoint();const localTest=/^http:\/\/(127\.0\.0\.1|localhost)(:\d+)?$/i.test(endpoint);if(!/^https:\/\//i.test(endpoint)&&!localTest){showMessage('https:// で始まる配信URLを入力してください。','error');return}
+  const request=++connectRequest;
   localStorage.setItem(ENDPOINT_KEY,endpoint);closeSocket();setConnection('','接続中');showMessage('直近データを取得しています…');
-  try{await fetchSnapshot(endpoint)}catch(error){setConnection('error','取得失敗');showMessage(`配信URLへ接続できません: ${error.message}`,'error');scheduleReconnect();return}
+  if(connectedEndpoint!==endpoint){
+    connectedEndpoint=endpoint;bars=[];latest=null;signalContext=null;signalDisplayKey=null;renderAll();
+  }
+  try{
+    const snapshot=await fetchSnapshot(endpoint);
+    if(request!==connectRequest)return;
+    mergeSnapshot(snapshot);
+  }catch(error){
+    if(request!==connectRequest)return;
+    setConnection('error','取得失敗');showMessage(`配信URLへ接続できません: ${error.message}`,'error');scheduleReconnect();return;
+  }
   const wsUrl=new URL(endpoint);wsUrl.protocol=wsUrl.protocol==='https:'?'wss:':'ws:';wsUrl.pathname=wsUrl.pathname.replace(/\/$/,'')+'/stream';wsUrl.searchParams.set('pair',PAIR);
   socket=new WebSocket(wsUrl.toString());
-  socket.onopen=()=>{setConnection('live','LIVE');showMessage('リアルタイムレートを受信中です。');heartbeatTimer=setInterval(()=>{if(socket&&socket.readyState===WebSocket.OPEN)socket.send('ping')},20000)};
+  socket.onopen=()=>{updateStats();heartbeatTimer=setInterval(()=>{if(socket?.readyState===WebSocket.OPEN)socket.send('ping')},20000)};
   socket.onmessage=event=>{try{const data=JSON.parse(event.data);if(data.type==='tick')ingestTick(data)}catch{}}
-  socket.onerror=()=>setConnection('error','通信エラー');
-  socket.onclose=()=>{setConnection('error','再接続待ち');showMessage('接続が切れました。自動で再接続します。','warn');scheduleReconnect()};
+  socket.onerror=()=>{setConnection('error','通信エラー');renderSignal()};
+  socket.onclose=()=>{setConnection('error','再接続待ち');showMessage('接続が切れました。自動で再接続します。','warn');renderSignal();scheduleReconnect()};
 }
 function scheduleReconnect(){if(reconnectTimer||!baseEndpoint())return;reconnectTimer=setTimeout(()=>{reconnectTimer=null;connect()},5000)}
 
 document.getElementById('connectBtn').addEventListener('click',connect);
-document.getElementById('pairToggle').addEventListener('click',()=>{displayPair=displayPair===PAIR?INVERSE_PAIR:PAIR;const button=document.getElementById('pairToggle');button.textContent=`表示: ${displayPair}`;button.classList.toggle('jpyusd',displayPair===INVERSE_PAIR);renderAll(false)});
+function updatePairToggle(){const button=document.getElementById('pairToggle');button.textContent=`表示: ${displayPair}`;button.classList.toggle('jpyusd',displayPair===INVERSE_PAIR)}
+document.getElementById('pairToggle').addEventListener('click',()=>{displayPair=displayPair===PAIR?INVERSE_PAIR:PAIR;updatePairToggle();renderAll(false)});
 document.getElementById('smaToggle').addEventListener('change',event=>{smaOn=event.target.checked;updateSma()});
-document.getElementById('smaPeriod').addEventListener('change',event=>{smaPeriod=Math.max(2,Math.min(500,Number(event.target.value)||20));event.target.value=smaPeriod;updateSma()});
+document.getElementById('smaPeriod').addEventListener('change',event=>{smaPeriod=Math.max(2,Math.min(500,Math.round(Number(event.target.value)||20)));event.target.value=smaPeriod;updateSma()});
 document.getElementById('windowSelect').addEventListener('change',followLatest);document.getElementById('followBtn').addEventListener('click',followLatest);
 new ResizeObserver(entries=>{for(const entry of entries)chart.applyOptions({width:entry.contentRect.width})}).observe(document.getElementById('chart'));
 setInterval(updateStats,1000);
 document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible'&&baseEndpoint()&&(!socket||socket.readyState>1))connect()});
-const params=new URLSearchParams(location.search),saved=params.get('feed')||localStorage.getItem(ENDPOINT_KEY)||DEFAULT_ENDPOINT;document.getElementById('feedUrl').value=saved;connect();
+const saved=params.get('feed')||localStorage.getItem(ENDPOINT_KEY)||DEFAULT_ENDPOINT;
+const replayParams=new URLSearchParams([...params].filter(([key])=>REPLAY_VIEW_KEYS.includes(key)));
+document.getElementById('replayBackLink').href=replayParams.size?`./?${replayParams}`:'./';
+document.getElementById('feedUrl').value=saved;
+document.getElementById('smaToggle').checked=smaOn;
+document.getElementById('smaPeriod').value=smaPeriod;
+updatePairToggle();
+connect();
 </script>
 </body>
 </html>

@@ -2218,7 +2218,14 @@ document.getElementById('playBtn').addEventListener('click', () => {
 });
 
 document.getElementById('pairToggleBtn').addEventListener('click', toggleDisplayPair);
-document.getElementById('livePageBtn').addEventListener('click', () => { window.location.href = 'live.html'; });
+document.getElementById('livePageBtn').addEventListener('click', () => {
+  const current = new URLSearchParams(location.search);
+  const live = new URLSearchParams([...current].filter(([key]) => ['start', 'end'].includes(key)));
+  live.set('sma', String(smaPeriod));
+  live.set('sma_on', smaOn ? '1' : '0');
+  live.set('pair', displayPair);
+  window.location.href = `live.html?${live}`;
+});
 
 document.getElementById('resetBtn').addEventListener('click', () => {
   playing = false;
