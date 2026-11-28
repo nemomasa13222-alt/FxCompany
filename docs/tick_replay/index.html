@@ -39,6 +39,7 @@ button.small{min-height:32px;padding:4px 12px;font-size:12px}
 #historyTable{width:100%;border-collapse:collapse;font-size:12px}
 #historyTable th{text-align:left;color:#64748b;padding:4px}
 #historyTable td{padding:4px;border-top:1px solid #f1f5f9}
+#historyTable th,#historyTable td{white-space:nowrap}
 .historyWrap{overflow-x:auto;max-height:260px;overflow-y:auto}
 .tradeHeading{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}
 .tradeHeadingCopy{min-width:0}
@@ -50,8 +51,11 @@ button.export:hover{background:#115e59}
 .tradeBar{position:fixed;left:0;right:0;bottom:0;z-index:1000;background:#fff;box-shadow:0 -2px 10px rgba(0,0,0,.12);display:none}
 .tradeBar.show{display:block}
 .tradeBarInner{max-width:1100px;margin:0 auto;padding:10px 20px calc(10px + env(safe-area-inset-bottom));display:flex;align-items:center;gap:10px}
+.tradeLot{display:inline-flex;align-items:center;gap:6px;white-space:nowrap;font-weight:600}
+.tradeLot #tradeLot{width:76px;padding:6px;text-align:center;font-size:16px;font-variant-numeric:tabular-nums}
+.tradeLot #tradeLot:invalid{border-color:#dc2626}
 .tradeBarInfo{flex:0 0 auto;min-width:90px;font-size:12px;color:#64748b;line-height:1.3}
-.tradeBarInfo .pnl{font-size:16px;font-weight:700;color:#1e293b;margin-top:2px}
+.tradeBarInfo .pnl{font-size:16px;font-weight:700;margin-top:2px}
 .tradeBarInner button{flex:1;padding:12px 10px;font-size:14px;min-height:46px}
 body.has-tradebar{padding-bottom:90px}
 select,input[type=datetime-local],input[type=number]{padding:10px;border-radius:8px;border:1px solid #cbd5e1;font-size:15px;min-height:44px;background:#fff;color:#1e293b}
@@ -129,14 +133,15 @@ input[type=range]{flex:1;min-width:150px;min-height:32px}
   .indicatorToggle{flex:1 1 auto}
   .indicatorState{flex:1 1 100%;margin-left:0}
   .periodControl input{width:74px}
-  .tradeBarInner{padding:8px 10px calc(8px + env(safe-area-inset-bottom));gap:6px}
-  .tradeBarInfo{min-width:64px;font-size:10px}
+  .tradeBarInner{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));padding:8px 10px calc(8px + env(safe-area-inset-bottom));gap:6px}
+  .tradeLot #tradeLot{width:60px}
+  .tradeBarInfo{grid-column:2/-1;min-width:0;text-align:right;font-size:11px}
   .tradeBarInfo .pnl{font-size:13px}
   .tradeBarInner button{padding:10px 4px;font-size:13px;min-height:42px}
   .tradeHeading{align-items:stretch;flex-direction:column}
   #exportReportBtn{width:100%}
   .practiceHead{flex-direction:column}.practiceName{grid-template-columns:1fr}.compareSelectors{grid-template-columns:1fr}.entryLists{grid-template-columns:1fr}.archivePicker{grid-template-columns:1fr}
-  body.has-tradebar{padding-bottom:78px}
+  body.has-tradebar{padding-bottom:calc(123px + env(safe-area-inset-bottom))}
 }
 </style>
 </head>
@@ -231,6 +236,7 @@ input[type=range]{flex:1;min-width:150px;min-height:32px}
       <div class="stat"><div class="label">取引数</div><div class="value" id="histCount">0</div></div>
       <div class="stat"><div class="label">勝率</div><div class="value" id="histWinRate">-</div></div>
       <div class="stat"><div class="label">合計pips</div><div class="value" id="histTotalPips">0.0</div></div>
+      <div class="stat"><div class="label" id="histYenLabel">確定損益</div><div class="value" id="histTotalYen">0円</div></div>
     </div>
     <div class="markerControls">
       <label><input type="checkbox" id="showCurrentMarkers">今回のエントリー・決済をチャートに表示</label>
@@ -243,7 +249,7 @@ input[type=range]{flex:1;min-width:150px;min-height:32px}
     <div class="historyWrap">
       <table id="historyTable">
         <thead>
-          <tr><th>決済時刻</th><th>方向</th><th>エントリー</th><th>決済</th><th>pips</th></tr>
+          <tr><th>決済時刻</th><th>方向</th><th>エントリー</th><th>決済</th><th>pips</th><th>Lot</th><th>損益</th></tr>
         </thead>
         <tbody id="historyBody"></tbody>
       </table>
@@ -285,6 +291,7 @@ input[type=range]{flex:1;min-width:150px;min-height:32px}
 
 <div class="tradeBar" id="tradeBar">
   <div class="tradeBarInner">
+    <label class="tradeLot" for="tradeLot">Lot <input id="tradeLot" type="number" value="1" min="0.01" step="0.01" inputmode="decimal" required title="次の注文数量。1Lot＝10,000 USD"></label>
     <div class="tradeBarInfo">
       <div id="barStatus">ポジションなし</div>
       <div class="pnl" id="barPnl">-</div>
@@ -302,6 +309,8 @@ const INVERSE_UNIT = 100;
 const SOFT_CAP = 400000;
 const HARD_CAP = 1500000;
 const JST_OFFSET_MS = 9 * 3600 * 1000;
+const USD_PER_LOT = 10000;
+const lotAndYenFormat = new Intl.NumberFormat('ja-JP', { maximumFractionDigits: 2 });
 
 let manifest = null;
 let BARS = [], TICKS = [], N = 0;
@@ -328,10 +337,12 @@ let SMA_WARMUP_CLOSES = [];
 let SMA_PREFIX = [];
 let SMA_BY_BAR = [];
 
-let position = null; // { dir: 'buy'|'sell', entryPrice, entryTime }
+let position = null; // { dir: 'buy'|'sell', entryPrice, entryTime, lot }
 let positionLine = null;
 let tradeHistory = [];
 const HISTORY_KEY = 'tickReplayTradeHistory_' + PAIR;
+const LOT_KEY = 'tickReplayTradeLot_' + PAIR;
+const tradeLotInput = document.getElementById('tradeLot');
 const SESSION_KEY = 'tickReplaySession_' + PAIR;
 const PRACTICE_RUNS_KEY = 'tickReplayPracticeRuns_' + PAIR;
 const DEVICE_TOKEN_KEY = 'tickReplayDeviceToken_v1';
@@ -703,11 +714,14 @@ function runDisplayName(run) {
 
 function runOptionText(run) {
   const total = Number(run.summary?.total_pips || 0);
+  const yen = yenTradeTotals(run.trades);
+  const amount = Number.isFinite(yen.realized_yen) && yen.yen_trade_count === run.trades.length
+    ? `｜${signedYen(yen.realized_yen)}` : '';
   if (run.source === 'dmm_actual') {
-    return `DMM実取引｜${run.trades.length}取引｜${signedPips(total)}p｜${signedYen(Number(run.summary?.realized_yen || 0))}`;
+    return `DMM実取引｜${run.trades.length}取引｜${signedPips(total)}p${amount}`;
   }
   const source = ['published_database', 'online_database'].includes(run.source) ? '｜保存DB' : '';
-  return `${run.attempt}回目｜${run.trades.length}取引｜${signedPips(total)}p${source}`;
+  return `${run.attempt}回目｜${run.trades.length}取引｜${signedPips(total)}p${amount}${source}`;
 }
 
 function renderPracticeControls(preferLatest = false) {
@@ -782,10 +796,10 @@ function entryListHtml(run) {
   const items = run.trades.map(trade => {
     const sideClass = trade.dir === 'buy' ? 'buyText' : 'sellText';
     const side = trade.dir === 'buy' ? 'BUY' : 'SELL';
-    const actual = run.source === 'dmm_actual'
-      ? `｜${Number(trade.lot || 0).toFixed(1)}Lot｜${signedYen(Number(trade.pnlYen || 0))}`
+    const amount = Number.isFinite(trade.pnlYen)
+      ? `｜${lotText(trade.lot)} Lot｜${signedYen(trade.pnlYen)}`
       : '';
-    return `<li><span class="${sideClass}">${side}</span> ${escapeHtml(fmtTime(Number(trade.entryTime) + JST_OFFSET_MS))} @ ${Number(trade.entryPrice).toFixed(3)} → ${signedPips(Number(trade.pips))}p${actual}</li>`;
+    return `<li><span class="${sideClass}">${side}</span> ${escapeHtml(fmtTime(Number(trade.entryTime) + JST_OFFSET_MS))} @ ${Number(trade.entryPrice).toFixed(3)} → ${signedPips(Number(trade.pips))}p${amount}</li>`;
   }).join('');
   return `<div class="entryList"><h3>${escapeHtml(runDisplayName(run))}のエントリーポイント</h3><ol>${items || '<li>取引なし</li>'}</ol></div>`;
 }
@@ -814,27 +828,34 @@ function renderPracticeComparison() {
     ['最大DD', `${Number(a.max_drawdown_pips).toFixed(1)}p`, `${Number(b.max_drawdown_pips).toFixed(1)}p`, metricDelta(Number(b.max_drawdown_pips) - Number(a.max_drawdown_pips), true)],
     ['最大連敗', `${Number(a.max_losing_streak || 0)}回`, `${Number(b.max_losing_streak || 0)}回`, metricDelta(Number(b.max_losing_streak || 0) - Number(a.max_losing_streak || 0), true)],
   ];
-  if (runA.source === 'dmm_actual' || runB.source === 'dmm_actual') {
+  const yenA = yenTradeTotals(runA.trades);
+  const yenB = yenTradeTotals(runB.trades);
+  if (Number.isFinite(yenA.realized_yen) || Number.isFinite(yenB.realized_yen)) {
+    const label = (run, yen) => `${signedYen(yen.realized_yen)}${yen.yen_trade_count && yen.yen_trade_count < run.trades.length ? `（${yen.yen_trade_count}/${run.trades.length}件）` : ''}`;
+    const comparable = yenA.yen_trade_count === runA.trades.length && yenB.yen_trade_count === runB.trades.length;
     rows.push([
-      '実損益',
-      runA.source === 'dmm_actual' ? signedYen(Number(a.realized_yen || 0)) : '—',
-      runB.source === 'dmm_actual' ? signedYen(Number(b.realized_yen || 0)) : '—',
-      '—',
+      '確定損益', label(runA, yenA), label(runB, yenB),
+      comparable ? signedYen(yenB.realized_yen - yenA.realized_yen) : '—',
     ]);
   }
   box.innerHTML = `<table class="compareTable"><thead><tr><th>項目</th><th>${escapeHtml(runDisplayName(runA))}</th><th>${escapeHtml(runDisplayName(runB))}</th><th>差（右−左）</th></tr></thead><tbody>${rows.map(row => `<tr><td>${row[0]}</td><td>${row[1]}</td><td>${row[2]}</td><td>${row[3]}</td></tr>`).join('')}</tbody></table><div class="entryLists">${entryListHtml(runA)}${entryListHtml(runB)}</div>`;
   refreshChartMarkers();
 }
 
-function saveCurrentPractice() {
-  const trades = visibleTrades().sort((a, b) => a.entryTime - b.entryTime).map(trade => ({
+function practiceTrades() {
+  return visibleTrades().sort((a, b) => a.entryTime - b.entryTime).map(trade => ({
     dir: trade.dir,
     entryTime: Number(trade.entryTime),
     entryPrice: Number(trade.entryPrice),
     exitTime: Number(trade.exitTime),
     exitPrice: Number(trade.exitPrice),
     pips: Number(trade.pips),
+    ...(Number.isFinite(trade.lot) ? { lot: trade.lot, pnlYen: trade.pnlYen } : {}),
   }));
+}
+
+function saveCurrentPractice() {
+  const trades = practiceTrades();
   if (!trades.length) {
     setStatus('保存できる決済済み取引がありません', 'warn');
     return;
@@ -875,14 +896,7 @@ function saveCurrentPractice() {
 }
 
 function currentFormalSavePayload() {
-  const trades = visibleTrades().sort((a, b) => a.entryTime - b.entryTime).map(trade => ({
-    dir: trade.dir,
-    entryTime: Number(trade.entryTime),
-    entryPrice: Number(trade.entryPrice),
-    exitTime: Number(trade.exitTime),
-    exitPrice: Number(trade.exitPrice),
-    pips: Number(trade.pips),
-  }));
+  const trades = practiceTrades();
   if (!trades.length) {
     setStatus('正式保存できる決済済み取引がありません', 'warn');
     return null;
@@ -1168,8 +1182,9 @@ function refreshChartMarkers(forceCurrentHistory = false) {
 }
 
 function updateTradeButtons() {
-  document.getElementById('barBuyBtn').disabled = !!position;
-  document.getElementById('barSellBtn').disabled = !!position;
+  const blocked = !!position || !validOrderLot();
+  document.getElementById('barBuyBtn').disabled = blocked;
+  document.getElementById('barSellBtn').disabled = blocked;
   document.getElementById('barCloseBtn').disabled = !position;
 }
 
@@ -1192,10 +1207,22 @@ function removePositionLine() {
   }
 }
 
+function validOrderLot() {
+  return tradeLotInput.validity.valid && Number.isSafeInteger(Math.round(tradeLotInput.valueAsNumber * 100));
+}
+
+function quotePosition(tick) {
+  const buy = position.dir === 'buy';
+  const exitPrice = buy ? tick.b : tick.a;
+  const move = buy ? exitPrice - position.entryPrice : position.entryPrice - exitPrice;
+  const pnlYen = Number.isFinite(position.lot) ? Number((move * position.lot * USD_PER_LOT).toFixed(2)) : null;
+  return { exitPrice, pips: move * 100, pnlYen };
+}
+
 function openPosition(dir) {
-  if (position || curIdx < 0) return;
+  if (position || curIdx < 0 || !validOrderLot()) return;
   const tk = TICKS[curIdx];
-  position = { dir, entryPrice: dir === 'buy' ? tk.a : tk.b, entryTime: tk.t };
+  position = { dir, entryPrice: dir === 'buy' ? tk.a : tk.b, entryTime: tk.t, lot: tradeLotInput.valueAsNumber };
   addPositionLine(position.dir, position.entryPrice);
   updateTradeButtons();
   renderPositionStatus(curIdx);
@@ -1206,17 +1233,10 @@ function openPosition(dir) {
 function closePosition() {
   if (!position || curIdx < 0) return;
   const tk = TICKS[curIdx];
-  const exitPrice = position.dir === 'buy' ? tk.b : tk.a;
-  const pips = position.dir === 'buy'
-    ? (exitPrice - position.entryPrice) * 100
-    : (position.entryPrice - exitPrice) * 100;
   tradeHistory.push({
-    dir: position.dir,
-    entryTime: position.entryTime,
-    entryPrice: position.entryPrice,
+    ...position,
     exitTime: tk.t,
-    exitPrice,
-    pips,
+    ...quotePosition(tk),
   });
   saveHistory();
   position = null;
@@ -1253,21 +1273,20 @@ function renderPositionStatus(i) {
     barPnlEl.className = 'pnl';
     return;
   }
-  const dirLabel = position.dir === 'buy' ? 'BUY 保有中' : 'SELL 保有中';
+  const dir = position.dir === 'buy' ? 'BUY' : 'SELL';
+  const lot = lotText(position.lot);
   const displayEntry = formatDisplayPrice(toDisplayPrice(position.entryPrice));
-  statusEl.textContent = dirLabel;
+  statusEl.textContent = `${dir} 保有中${lot === '—' ? '' : ` · ${lot} Lot`}`;
   entryEl.textContent = `${displayEntry} (${fmtTime(position.entryTime + JST_OFFSET_MS)})`;
-  barStatusEl.textContent = `${dirLabel} @ ${displayEntry}`;
+  barStatusEl.textContent = `${dir}${lot === '—' ? '' : ` ${lot} Lot`} @ ${displayEntry}`;
   if (i != null && i >= 0) {
-    const tk = TICKS[i];
-    const pips = position.dir === 'buy'
-      ? (tk.b - position.entryPrice) * 100
-      : (position.entryPrice - tk.a) * 100;
-    const pipsText = (pips >= 0 ? '+' : '') + pips.toFixed(1) + ' pips';
+    const { pips, pnlYen } = quotePosition(TICKS[i]);
+    const pipsText = `${signedPips(pips)} pips`;
+    const text = Number.isFinite(pnlYen) ? `${signedYen(pnlYen)} · ${pipsText}` : pipsText;
     const pipsClass = pips >= 0 ? 'pnl-pos' : 'pnl-neg';
-    pnlEl.textContent = pipsText;
+    pnlEl.textContent = text;
     pnlEl.className = 'value ' + pipsClass;
-    barPnlEl.textContent = pipsText;
+    barPnlEl.textContent = text;
     barPnlEl.className = 'pnl ' + pipsClass;
   }
 }
@@ -1284,6 +1303,11 @@ function renderHistory() {
   document.getElementById('histCount').textContent = n;
   document.getElementById('histWinRate').textContent = n ? ((wins / n) * 100).toFixed(1) + '%' : '-';
   document.getElementById('histTotalPips').textContent = (totalPips >= 0 ? '+' : '') + totalPips.toFixed(1);
+  const yen = yenTradeTotals(tradeHistory);
+  document.getElementById('histYenLabel').textContent = n && yen.yen_trade_count !== n ? '確定損益（Lot記録分）' : '確定損益';
+  const totalYenEl = document.getElementById('histTotalYen');
+  totalYenEl.textContent = signedYen(yen.realized_yen);
+  totalYenEl.className = `value ${yenClass(yen.realized_yen)}`;
 
   for (let idx = tradeHistory.length - 1; idx >= 0; idx--) {
     const t = tradeHistory[idx];
@@ -1292,7 +1316,8 @@ function renderHistory() {
       `<td>${t.dir === 'buy' ? 'BUY' : 'SELL'}</td>` +
       `<td>${t.entryPrice.toFixed(3)}</td>` +
       `<td>${t.exitPrice.toFixed(3)}</td>` +
-      `<td class="${t.pips >= 0 ? 'pnl-pos' : 'pnl-neg'}">${(t.pips >= 0 ? '+' : '') + t.pips.toFixed(1)}</td>`;
+      `<td class="${t.pips >= 0 ? 'pnl-pos' : 'pnl-neg'}">${signedPips(t.pips)}</td>` +
+      `<td>${lotText(t.lot)}</td><td class="${yenClass(t.pnlYen)}">${signedYen(t.pnlYen)}</td>`;
     tbody.appendChild(tr);
   }
   const exportBtn = document.getElementById('exportReportBtn');
@@ -1888,8 +1913,27 @@ function signedPips(value) {
 }
 
 function signedYen(value) {
-  const rounded = Math.round(Number(value) || 0);
-  return `${rounded >= 0 ? '+' : ''}${rounded.toLocaleString()}円`;
+  if (!Number.isFinite(value)) return '—';
+  const rounded = Number(value.toFixed(2)) || 0;
+  return `${rounded > 0 ? '+' : ''}${lotAndYenFormat.format(rounded)}円`;
+}
+
+function lotText(value) {
+  return Number.isFinite(value) ? lotAndYenFormat.format(value) : '—';
+}
+
+function yenClass(value) {
+  return !Number.isFinite(value) || value === 0 ? '' : value > 0 ? 'pnl-pos' : 'pnl-neg';
+}
+
+function yenTradeTotals(trades) {
+  let total = 0, count = 0;
+  for (const trade of trades) {
+    if (!Number.isFinite(trade.pnlYen)) continue;
+    total += trade.pnlYen;
+    count++;
+  }
+  return { realized_yen: count || !trades.length ? Number(total.toFixed(2)) : null, yen_trade_count: count };
 }
 
 function summarizeTrades(trades) {
@@ -1929,6 +1973,7 @@ function summarizeTrades(trades) {
     max_loss_pips: losingPips.length ? Math.min(...losingPips) : 0,
     max_drawdown_pips: maxDrawdown,
     max_losing_streak: maxLosingStreak,
+    ...yenTradeTotals(trades),
     buy: side('buy'),
     sell: side('sell'),
   };
@@ -1946,6 +1991,8 @@ function reportTradeRows(trades) {
       <td>${Number(trade.exitPrice).toFixed(3)}</td>
       <td>${Math.floor(durationSec / 60)}分${durationSec % 60}秒</td>
       <td class="${trade.pips >= 0 ? 'positive' : 'negative'}">${signedPips(Number(trade.pips))}</td>
+      <td>${lotText(trade.lot)}</td>
+      <td class="${trade.pnlYen > 0 ? 'positive' : trade.pnlYen < 0 ? 'negative' : ''}">${signedYen(trade.pnlYen)}</td>
     </tr>`;
   }).join('');
 }
@@ -1972,16 +2019,15 @@ async function exportAnalysisReport() {
     const currentTick = TICKS[Math.max(0, Math.min(curIdx, TICKS.length - 1))];
     let openPosition = null;
     if (position) {
-      const marketPrice = position.dir === 'buy' ? currentTick.b : currentTick.a;
-      const unrealizedPips = position.dir === 'buy'
-        ? (marketPrice - position.entryPrice) * 100
-        : (position.entryPrice - marketPrice) * 100;
+      const quote = quotePosition(currentTick);
       openPosition = {
         direction: position.dir,
         entry_time_jst: fmtTime(position.entryTime + JST_OFFSET_MS),
         entry_price: position.entryPrice,
-        current_market_price: marketPrice,
-        unrealized_pips: unrealizedPips,
+        current_market_price: quote.exitPrice,
+        unrealized_pips: quote.pips,
+        lot: position.lot ?? null,
+        unrealized_yen: quote.pnlYen,
       };
     }
     const data = {
@@ -2009,6 +2055,8 @@ async function exportAnalysisReport() {
         exit_price: trade.exitPrice,
         holding_seconds: Math.max(0, Math.round((trade.exitTime - trade.entryTime) / 1000)),
         pips: trade.pips,
+        lot: trade.lot ?? null,
+        pnl_yen: trade.pnlYen ?? null,
       })),
     };
     const json = JSON.stringify(data, null, 2);
@@ -2027,6 +2075,7 @@ async function exportAnalysisReport() {
 <div class="meta">作成: ${escapeHtml(data.generated_at_jst)} JST ｜ 対象: ${escapeHtml(data.chart_range_jst.start)} 〜 ${escapeHtml(data.chart_range_jst.replayed_until)} JST ｜ SMA${smaPeriod}${smaOn ? '表示' : '非表示'}</div>
 <section class="panel"><h2>損益サマリー</h2><div class="metrics">
 <div class="metric"><div class="label">合計</div><div class="value ${summary.total_pips >= 0 ? 'positive' : 'negative'}">${signedPips(summary.total_pips)} pips</div></div>
+<div class="metric"><div class="label">確定損益${summary.yen_trade_count < summary.trade_count ? '（Lot記録分）' : ''}</div><div class="value ${summary.realized_yen > 0 ? 'positive' : summary.realized_yen < 0 ? 'negative' : ''}">${signedYen(summary.realized_yen)}</div></div>
 <div class="metric"><div class="label">取引数</div><div class="value">${summary.trade_count}</div></div>
 <div class="metric"><div class="label">勝率</div><div class="value">${summary.win_rate_pct.toFixed(1)}%</div></div>
 <div class="metric"><div class="label">PF</div><div class="value">${pfText}</div></div>
@@ -2038,7 +2087,7 @@ async function exportAnalysisReport() {
 <div class="metric"><div class="label">SELL</div><div class="value">${summary.sell.count}回 / ${signedPips(summary.sell.total_pips)}p</div></div>
 </div></section>
 <section class="panel"><h2>チャートと売買位置</h2><img class="chart" src="${chartPng}" alt="売買マーカー付きチャート"><div class="legend"><span><i class="dot buyDot"></i>BUY</span><span><i class="dot sellDot"></i>SELL</span><span><i class="dot exitDot"></i>決済（横の数値は損益pips）</span></div></section>
-<section class="panel"><h2>取引明細</h2><div class="tableWrap"><table><thead><tr><th>No.</th><th>方向</th><th>エントリー JST</th><th>価格</th><th>決済 JST</th><th>価格</th><th>保有</th><th>損益 pips</th></tr></thead><tbody>${reportTradeRows(trades)}</tbody></table></div></section>
+<section class="panel"><h2>取引明細</h2><div class="tableWrap"><table><thead><tr><th>No.</th><th>方向</th><th>エントリー JST</th><th>価格</th><th>決済 JST</th><th>価格</th><th>保有</th><th>損益 pips</th><th>Lot</th><th>損益 円</th></tr></thead><tbody>${reportTradeRows(trades)}</tbody></table></div></section>
 <section class="panel"><h2>AIに依頼するときの例</h2><div class="prompt">${escapeHtml(aiPrompt)}</div><div class="note">このHTMLファイルをAIへ添付し、上の文章を送ってください。チャート画像と取引データが1ファイルに入っています。</div></section>
 <section class="panel"><details><summary>AI解析用JSONを表示</summary><pre id="trade-analysis-data" class="json">${escapeHtml(json)}</pre></details></section>
 </main></body></html>`;
@@ -2238,6 +2287,17 @@ document.getElementById('resetBtn').addEventListener('click', () => {
   saveReplayState(true);
 });
 
+try {
+  const savedLot = localStorage.getItem(LOT_KEY);
+  if (savedLot) tradeLotInput.value = savedLot;
+  if (!validOrderLot()) tradeLotInput.value = '1';
+} catch (e) {}
+tradeLotInput.addEventListener('input', () => {
+  if (validOrderLot()) {
+    try { localStorage.setItem(LOT_KEY, tradeLotInput.value); } catch (e) {}
+  }
+  updateTradeButtons();
+});
 document.getElementById('barBuyBtn').addEventListener('click', () => openPosition('buy'));
 document.getElementById('barSellBtn').addEventListener('click', () => openPosition('sell'));
 document.getElementById('barCloseBtn').addEventListener('click', closePosition);
